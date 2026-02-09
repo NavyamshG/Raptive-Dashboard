@@ -14,7 +14,14 @@ st.set_page_config(page_title="CTR Inference Lab", layout="wide")
 st.markdown("""
     <style>
     [data-testid="stMetricValue"] { font-size: 28px; }
-    .main-header { font-size: 2.2rem; font-weight: 700; color: #1E1E1E; margin-bottom: 0; }
+    /* Increased main header size */
+    .main-header { 
+        font-size: 3.5rem; 
+        font-weight: 800; 
+        color: #1E1E1E; 
+        margin-bottom: 0;
+        padding-bottom: 10px;
+    }
     .sub-header { font-size: 1.2rem; color: #5E5E5E; margin-top: 0; margin-bottom: 20px; }
     .description-box {
         background-color: #f9f9f9;
