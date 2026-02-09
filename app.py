@@ -16,7 +16,7 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 28px; }
     
     .main-header { 
-        font-size: 4.5rem; 
+        font-size: 7rem; 
         font-weight: 900; 
         color: #1E1E1E; 
         margin-bottom: 0;
