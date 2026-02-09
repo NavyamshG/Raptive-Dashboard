@@ -68,7 +68,7 @@ with tab2:
     c1, c2 = st.columns([1.5, 1])
     
     with c1:
-        st.subheader("📈 Decision Confidence")
+        st.subheader("Decision Confidence")
         # Probability Gauge for immediate visual "Go/No-Go"
         import plotly.graph_objects as go
         
@@ -91,7 +91,7 @@ with tab2:
         st.plotly_chart(fig_gauge, use_container_width=True)
 
     with c2:
-        st.subheader("🚀 Business Impact Summary")
+        st.subheader(" Business Impact Summary")
         
         # Big Bold Metrics
         st.metric("Most Likely Lift", f"{np.median(relative_lift):+.1%}")
