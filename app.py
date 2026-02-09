@@ -6,7 +6,7 @@ from scipy.stats import beta
 
 st.set_page_config(page_title="Raptive Advanced Decision Engine", layout="wide")
 
-st.title("🧪 Advanced Bayesian A/B Decision Engine")
+st.title(" Bayesian A/B Decision Engine")
 
 # --- SIDEBAR CONTROLS ---
 st.sidebar.header("🕹️ Experiment Data")
