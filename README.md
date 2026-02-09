@@ -40,7 +40,7 @@ This highlights approximation risk in moderate sample experiments.
 ## 🖼️ Preview
 
 ### 🔹 Home Page UI
-<img src="image.png" alt="AIRA 1.0 Home UI" width="800"/>
+<img src="image1.png" alt="Raptive-Dashboard" width="800"/>
 
 
 ## 🛠 Installation & Usage
