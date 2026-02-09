@@ -39,13 +39,14 @@ This highlights approximation risk in moderate sample experiments.
 
 ## 🛠 Installation & Usage
 
-### 1 Install Dependencies
+1. **Install dependencies:**
 
 Make sure Python 3.8+ is installed.
 
 ```bash
 pip install streamlit pandas numpy matplotlib seaborn scipy plotly
- ```bash
+
+```bash
 
 2. **Run the app:**
    
