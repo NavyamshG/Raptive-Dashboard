@@ -15,8 +15,7 @@ st.markdown("""
     <style>
     [data-testid="stMetricValue"] { font-size: 28px; }
     
-    .main-header { 
-/* MASSIVE HEADER STYLING */
+
     .main-header { 
         font-size: 6rem;           /* Dramatically larger scale */
         font-weight: 900;           /* Maximum thickness */
@@ -26,7 +25,7 @@ st.markdown("""
         letter-spacing: -3px;       /* Gives it a tight, professional look */
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
-    }
+    
     
     .sub-header { 
         font-size: 1.4rem; 
