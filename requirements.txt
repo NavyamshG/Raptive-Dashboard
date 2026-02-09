@@ -1,9 +1,7 @@
 streamlit
-pandas
 numpy
+pandas
+scipy
+plotly
 matplotlib
 seaborn
-scipy
-plotly.graph_objects
-scipy.stats
-math
