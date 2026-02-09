@@ -15,7 +15,6 @@ st.markdown("""
     <style>
     [data-testid="stMetricValue"] { font-size: 28px; }
     
-    /* Massive Main Header */
     .main-header { 
         font-size: 4.5rem; 
         font-weight: 900; 
@@ -48,7 +47,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# Professional Headers
+# Headers
 st.markdown('<p class="main-header">📊 CTR Inference Lab</p>', unsafe_allow_html=True)
 st.markdown('<p class="sub-header">Evaluating Estimator Robustness: How Distributional Assumptions Impact Significance in Discrete A/B Testing</p>', unsafe_allow_html=True)
 
@@ -137,50 +136,40 @@ def pct(x):
 # -------------------------
 with st.sidebar:
     st.header("🕹️ Scenario Selector")
-    scenario = st.selectbox("Choose a scenario or Manual Entry:", 
-                            ["Manual Entry", "Small Sample (Low Power)", "The Marginal Win", "Clear Winner"])
-    
-    presets = {
-        "Manual Entry": (20, 200, 35, 200),
-        "Small Sample (Low Power)": (2, 20, 5, 20),
-        "The Marginal Win": (100, 1000, 125, 1000),
-        "Clear Winner": (50, 1000, 120, 1000)
-    }
+    scenario = st.selectbox("Choose a scenario:", ["Manual Entry", "Small Sample", "Marginal Win", "Clear Winner"])
+    presets = {"Manual Entry": (20, 200, 35, 200), "Small Sample": (2, 20, 5, 20), "Marginal Win": (100, 1000, 125, 1000), "Clear Winner": (50, 1000, 120, 1000)}
     def_x1, def_n1, def_x2, def_n2 = presets[scenario]
-
-    st.divider()
-    st.header("🎛️ Experiment Inputs")
-    colA, colB = st.columns(2)
-    x1 = colA.number_input("Control Clicks", value=def_x1, min_value=0)
-    n1 = colA.number_input("Control Views", value=def_n1, min_value=1)
-    x2 = colB.number_input("Variant Clicks", value=def_x2, min_value=0)
-    n2 = colB.number_input("Variant Views", value=def_n2, min_value=1)
     
-    alpha = st.slider("Significance α (Type I Error)", 0.01, 0.20, 0.05)
+    st.divider()
+    x1 = st.number_input("Control Clicks", value=def_x1, min_value=0)
+    n1 = st.number_input("Control Views", value=def_n1, min_value=1)
+    x2 = st.number_input("Variant Clicks", value=def_x2, min_value=0)
+    n2 = st.number_input("Variant Views", value=def_n2, min_value=1)
+    alpha = st.slider("Significance α", 0.01, 0.20, 0.05)
 
     st.divider()
-    with st.expander("🚨 Peeking Demo Settings"):
+    with st.expander("🚨 Peeking Simulation Settings"):
         show_peeking = st.toggle("Show Peeking Demo", value=True)
         looks = st.slider("Number of looks (k)", 2, 30, 15)
         sims = st.slider("Simulations", 100, 2000, 500)
         seed = st.number_input("Seed", value=42)
 
 # -------------------------
-# Processing
+# Calculations
 # -------------------------
 validate_counts(int(x1), int(n1), "Control")
 validate_counts(int(x2), int(n2), "Variant")
 
 p1, p2 = x1/n1, x2/n2
 diff = p2 - p1
-rel = diff / p1 if p1 > 0 else np.nan
-
-# Execute Tests
 z_stat, z_p = two_prop_ztest(x1, n1, x2, n2)
 t_stat, t_df, t_p = welch_ttest_bernoulli(x1, n1, x2, n2)
 odds, f_p = fishers_exact(x1, n1, x2, n2)
 
-# CIs
+tests = {"z-test": z_p, "t-test": t_p, "Fisher": f_p}
+wins = [name for name, p in tests.items() if np.isfinite(p) and p <= alpha]
+losses = [name for name, p in tests.items() if np.isfinite(p) and p > alpha]
+
 wald_d, wald_lo, wald_hi = wald_ci_diff(x1, n1, x2, n2, alpha=alpha)
 newc_d, newc_lo, newc_hi = newcombe_ci_diff(x1, n1, x2, n2, alpha=alpha)
 
@@ -190,71 +179,60 @@ newc_d, newc_lo, newc_hi = newcombe_ci_diff(x1, n1, x2, n2, alpha=alpha)
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Control CTR", pct(p1))
 c2.metric("Variant CTR", pct(p2))
-lift_color = "normal" if (z_p <= alpha) else "off"
-c3.metric("Δ CTR (Abs)", pct(diff), f"Rel: {pct(rel)}", delta_color=lift_color)
-c4.metric("Confidence (z-test)", pct(1 - z_p) if np.isfinite(z_p) else "NA")
+c3.metric("Δ CTR (Abs)", pct(diff))
+c4.metric("Confidence (Z)", pct(1 - z_p) if np.isfinite(z_p) else "NA")
 
 st.divider()
 
-# 1) Visual Overlap & Test Verdicts
+# 1) Visual Overlap & Verdicts
 st.subheader("1) Comparative Statistical Verdicts")
 col_plot, col_results = st.columns([1.5, 1])
 
 with col_plot:
     x_axis = np.linspace(max(0, min(p1, p2) - 0.15), min(1, max(p1, p2) + 0.15), 500)
-    se1 = math.sqrt(p1*(1-p1)/n1) if p1 > 0 else 0.01
-    se2 = math.sqrt(p2*(1-p2)/n2) if p2 > 0 else 0.01
-    y1, y2 = stats.norm.pdf(x_axis, p1, se1), stats.norm.pdf(x_axis, p2, se2)
-    
-    fig_dist = go.Figure()
-    fig_dist.add_trace(go.Scatter(x=x_axis, y=y1, fill='tozeroy', name='Control', line_color='#636EFA'))
-    fig_dist.add_trace(go.Scatter(x=x_axis, y=y2, fill='tozeroy', name='Variant', line_color='#00CC96'))
-    fig_dist.update_layout(height=350, margin=dict(l=0, r=0, t=20, b=0), xaxis_title="CTR Range", yaxis_title="Probability Density")
-    st.plotly_chart(fig_dist, use_container_width=True)
+    y1 = stats.norm.pdf(x_axis, p1, math.sqrt(p1*(1-p1)/n1))
+    y2 = stats.norm.pdf(x_axis, p2, math.sqrt(p2*(1-p2)/n2))
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=x_axis, y=y1, fill='tozeroy', name='Control', line_color='#636EFA'))
+    fig.add_trace(go.Scatter(x=x_axis, y=y2, fill='tozeroy', name='Variant', line_color='#00CC96'))
+    fig.update_layout(height=350, margin=dict(l=0, r=0, t=0, b=0))
+    st.plotly_chart(fig, use_container_width=True)
 
 with col_results:
-    st.markdown("**Test Performance (p-values)**")
-    fig_methods = go.Figure()
-    fig_methods.add_trace(go.Bar(
-        x=["z-test", "t-test", "Fisher"],
-        y=[z_p if np.isfinite(z_p) else 1.0, t_p if np.isfinite(t_p) else 1.0, f_p],
-        marker_color=['#00CC96' if p <= alpha else '#EF553B' for p in [z_p, t_p, f_p]],
-        text=[f"{p:.4f}" for p in [z_p, t_p, f_p]],
-        textposition="auto"
+    if wins:
+        st.success(f"**Winner according to:** {', '.join(wins)}")
+    if losses:
+        st.error(f"**No Significance according to:** {', '.join(losses)}")
+    
+    st.markdown("**p-value Comparison**")
+    fig_p = go.Figure(go.Bar(
+        x=list(tests.keys()), 
+        y=list(tests.values()),
+        marker_color=['#00CC96' if p <= alpha else '#EF553B' for p in tests.values()],
+        text=[f"{p:.4f}" for p in tests.values()],
+        textposition='auto'
     ))
-    fig_methods.add_hline(y=alpha, line_dash="dash", line_color="black")
-    fig_methods.update_layout(height=300, margin=dict(l=0, r=0, t=20, b=0), showlegend=False)
-    st.plotly_chart(fig_methods, use_container_width=True)
+    fig_p.add_hline(y=alpha, line_dash="dash")
+    fig_p.update_layout(height=200, margin=dict(l=0, r=0, t=10, b=0))
+    st.plotly_chart(fig_p, use_container_width=True)
 
 st.divider()
 
-# 2) Confidence Interval Comparison
+# 2) Confidence Intervals
 st.subheader("2) Delta Confidence Intervals")
-st.caption("Numerical values represent the Lower and Upper bounds of the absolute difference.")
+st.markdown(f"**Wald Interval (Binomial):** `{pct(wald_lo)}` to `{pct(wald_hi)}`  \n"
+            f"**Newcombe Interval (Wilson):** `{pct(newc_lo)}` to `{pct(newc_hi)}`")
 
 fig_ci = go.Figure()
-# Wald CI
-fig_ci.add_trace(go.Scatter(
-    x=[diff], y=["Wald (Binomial)"], mode="markers+text",
-    text=[f"[{pct(wald_lo)}, {pct(wald_hi)}]"],
-    textposition="bottom center",
-    error_x=dict(type="data", array=[wald_hi - diff], arrayminus=[diff - wald_lo], visible=True),
-    marker=dict(size=12, color="#AB63FA")
-))
-# Newcombe CI
-fig_ci.add_trace(go.Scatter(
-    x=[diff], y=["Newcombe (Wilson)"], mode="markers+text",
-    text=[f"[{pct(newc_lo)}, {pct(newc_hi)}]"],
-    textposition="bottom center",
-    error_x=dict(type="data", array=[newc_hi - diff], arrayminus=[diff - newc_lo], visible=True),
-    marker=dict(size=12, color="#EF553B")
-))
-
+fig_ci.add_trace(go.Scatter(x=[diff], y=["Wald (Binomial)"], mode="markers", error_x=dict(type="data", array=[wald_hi - diff], arrayminus=[diff - wald_lo], visible=True), marker=dict(size=12, color="#AB63FA")))
+fig_ci.add_trace(go.Scatter(x=[diff], y=["Newcombe (Wilson)"], mode="markers", error_x=dict(type="data", array=[newc_hi - diff], arrayminus=[diff - newc_lo], visible=True), marker=dict(size=12, color="#EF553B")))
 fig_ci.add_vline(x=0, line_dash="dash", line_color="gray")
-fig_ci.update_layout(height=350, xaxis_title="Abs Difference (B - A)", showlegend=False)
+fig_ci.update_layout(height=300, xaxis_title="Abs Difference", showlegend=False)
 st.plotly_chart(fig_ci, use_container_width=True)
 
-# 3) Peeking Danger Demo
+st.divider()
+
+# 3) Peeking Danger Demo (REINSTATED)
 if show_peeking:
     st.subheader("3) The Danger of Peeking (False Positive Risk)")
     rng = np.random.default_rng(int(seed))
