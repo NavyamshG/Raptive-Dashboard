@@ -7,7 +7,9 @@ import math
 # ============================================================
 # CTR Inference Lab (Simple + Intuitive)
 # - Keep: z-test + t-test + Fisher comparison
-# - Add: Simple CI visual (Wald vs Newcombe/Wilson) for Δ CTR
+# - Add: Simple CI visuals:
+#     (A) Line-interval CI view (Wald vs Newcombe/Wilson)
+#     (B) Dot + error-bar CI view (more intuitive)
 # - Keep: Simple peeking demo
 # ============================================================
 
@@ -212,7 +214,7 @@ st.caption("Bars below the α line are statistically significant.")
 st.divider()
 
 # -------------------------
-# 2) Simple CI visual (Wald vs Newcombe/Wilson)
+# 2) CI Visuals (two views)
 # -------------------------
 st.subheader("2) Confidence interval for Δ CTR (two methods)")
 
@@ -223,6 +225,7 @@ Wald can be too optimistic or weird at small n / extreme CTR. Newcombe/Wilson is
     """
 )
 
+# (A) Line-interval view
 fig_ci = go.Figure()
 fig_ci.add_trace(go.Scatter(
     x=[wald_lo, wald_hi],
@@ -244,22 +247,64 @@ fig_ci.add_trace(go.Scatter(
     marker=dict(size=10)
 ))
 fig_ci.add_vline(x=0)
-
 fig_ci.update_layout(
     xaxis_title="Δ CTR (B − A)",
     yaxis_title="",
-    height=320,
+    height=300,
     showlegend=True
 )
 st.plotly_chart(fig_ci, use_container_width=True)
+
+# (B) Dot + error-bar view (more intuitive)
+st.markdown("**More intuitive view: dot + error bars**")
+
+fig_ci2 = go.Figure()
+
+fig_ci2.add_trace(go.Scatter(
+    x=[diff],
+    y=["Wald"],
+    mode="markers",
+    name="Wald",
+    error_x=dict(
+        type="data",
+        symmetric=False,
+        array=[wald_hi - diff],
+        arrayminus=[diff - wald_lo],
+        visible=True
+    ),
+    marker=dict(size=10)
+))
+
+fig_ci2.add_trace(go.Scatter(
+    x=[diff],
+    y=["Newcombe/Wilson"],
+    mode="markers",
+    name="Newcombe/Wilson",
+    error_x=dict(
+        type="data",
+        symmetric=False,
+        array=[newc_hi - diff],
+        arrayminus=[diff - newc_lo],
+        visible=True
+    ),
+    marker=dict(size=10)
+))
+
+fig_ci2.add_vline(x=0)
+fig_ci2.update_layout(
+    xaxis_title="Δ CTR (B − A)",
+    yaxis_title="",
+    height=300,
+    showlegend=False
+)
+st.plotly_chart(fig_ci2, use_container_width=True)
+st.caption("Dot is the observed ΔCTR. Error bars are the CI. If the CI crosses 0, it’s not conclusive at this confidence level.")
 
 cA, cB = st.columns(2)
 with cA:
     st.metric("Wald CI", f"[{pct(wald_lo)}, {pct(wald_hi)}]")
 with cB:
     st.metric("Newcombe/Wilson CI", f"[{pct(newc_lo)}, {pct(newc_hi)}]")
-
-st.caption("If the CI crosses 0, the data is compatible with no difference (at this confidence level).")
 
 st.divider()
 
