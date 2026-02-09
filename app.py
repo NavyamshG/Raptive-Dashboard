@@ -233,9 +233,17 @@ st.divider()
 st.subheader("2) Delta Confidence Intervals")
 
 
-# Moved into two separate lines for clarity
-st.markdown(f"**Wald Interval (Binomial):** `{pct(wald_lo)}` to `{pct(wald_hi)}` ")
-st.markdown(f"**Newcombe Interval (Wilson):** `{pct(newc_lo)}` to `{pct(newc_hi)}` ")
+# Increased font size using inline CSS
+st.markdown(f"""<span style="font-size: 1.2rem;">
+    <strong>Wald Interval (Binomial):</strong> <code>{pct(wald_lo)}</code> to <code>{pct(wald_hi)}</code>
+    </span>""", unsafe_allow_html=True)
+
+st.markdown(f"""<span style="font-size: 1.2rem;">
+    <strong>Newcombe Interval (Wilson):</strong> <code>{pct(newc_lo)}</code> to <code>{pct(newc_hi)}</code>
+    </span>""", unsafe_allow_html=True)
+
+fig_ci = go.Figure()
+# ... (rest of your plotting code)
 
 fig_ci = go.Figure()
 # ... (rest of the plotting code remains the same)
