@@ -10,19 +10,28 @@ import math
 
 st.set_page_config(page_title="CTR Inference Lab", layout="wide")
 
-# Custom CSS for punchier metrics and professional text blocks
+# Custom CSS for high-impact headers and professional text blocks
 st.markdown("""
     <style>
     [data-testid="stMetricValue"] { font-size: 28px; }
-    /* Increased main header size */
+    
+    /* Massive Main Header */
     .main-header { 
-        font-size: 3.5rem; 
-        font-weight: 800; 
+        font-size: 4.5rem; 
+        font-weight: 900; 
         color: #1E1E1E; 
         margin-bottom: 0;
-        padding-bottom: 10px;
+        line-height: 1.1;
     }
-    .sub-header { font-size: 1.2rem; color: #5E5E5E; margin-top: 0; margin-bottom: 20px; }
+    
+    .sub-header { 
+        font-size: 1.4rem; 
+        color: #5E5E5E; 
+        margin-top: 5px; 
+        margin-bottom: 25px; 
+        font-weight: 400;
+    }
+    
     .description-box {
         background-color: #f9f9f9;
         padding: 20px;
@@ -30,6 +39,7 @@ st.markdown("""
         border-left: 5px solid #ff4b4b;
         margin-bottom: 25px;
     }
+    
     .explanation-text {
         font-size: 1rem;
         line-height: 1.5;
@@ -170,11 +180,6 @@ z_stat, z_p = two_prop_ztest(x1, n1, x2, n2)
 t_stat, t_df, t_p = welch_ttest_bernoulli(x1, n1, x2, n2)
 odds, f_p = fishers_exact(x1, n1, x2, n2)
 
-# Verdict Logic
-tests = {"z-test": z_p, "t-test": t_p, "Fisher": f_p}
-wins = [name for name, p in tests.items() if np.isfinite(p) and p <= alpha]
-losses = [name for name, p in tests.items() if np.isfinite(p) and p > alpha]
-
 # CIs
 wald_d, wald_lo, wald_hi = wald_ci_diff(x1, n1, x2, n2, alpha=alpha)
 newc_d, newc_lo, newc_hi = newcombe_ci_diff(x1, n1, x2, n2, alpha=alpha)
@@ -202,18 +207,13 @@ with col_plot:
     y1, y2 = stats.norm.pdf(x_axis, p1, se1), stats.norm.pdf(x_axis, p2, se2)
     
     fig_dist = go.Figure()
-    fig_dist.add_trace(go.Scatter(x=x_axis, y=y1, fill='tozeroy', name='Control (Binomial Approx)', line_color='#636EFA'))
-    fig_dist.add_trace(go.Scatter(x=x_axis, y=y2, fill='tozeroy', name='Variant (Binomial Approx)', line_color='#00CC96'))
+    fig_dist.add_trace(go.Scatter(x=x_axis, y=y1, fill='tozeroy', name='Control', line_color='#636EFA'))
+    fig_dist.add_trace(go.Scatter(x=x_axis, y=y2, fill='tozeroy', name='Variant', line_color='#00CC96'))
     fig_dist.update_layout(height=350, margin=dict(l=0, r=0, t=20, b=0), xaxis_title="CTR Range", yaxis_title="Probability Density")
     st.plotly_chart(fig_dist, use_container_width=True)
 
 with col_results:
-    st.markdown("**Test Performance**")
-    if wins:
-        st.success(f"**Significant Win according to:** {', '.join(wins)}")
-    if losses:
-        st.error(f"**No Significance according to:** {', '.join(losses)}")
-
+    st.markdown("**Test Performance (p-values)**")
     fig_methods = go.Figure()
     fig_methods.add_trace(go.Bar(
         x=["z-test", "t-test", "Fisher"],
@@ -223,19 +223,35 @@ with col_results:
         textposition="auto"
     ))
     fig_methods.add_hline(y=alpha, line_dash="dash", line_color="black")
-    fig_methods.update_layout(yaxis_title="p-value", height=250, margin=dict(l=0, r=0, t=20, b=0), showlegend=False)
+    fig_methods.update_layout(height=300, margin=dict(l=0, r=0, t=20, b=0), showlegend=False)
     st.plotly_chart(fig_methods, use_container_width=True)
-    st.caption(f"Horizontal line represents α={alpha}")
 
 st.divider()
 
 # 2) Confidence Interval Comparison
 st.subheader("2) Delta Confidence Intervals")
+st.caption("Numerical values represent the Lower and Upper bounds of the absolute difference.")
+
 fig_ci = go.Figure()
-fig_ci.add_trace(go.Scatter(x=[diff], y=["Wald (Binomial)"], mode="markers", error_x=dict(type="data", array=[wald_hi - diff], arrayminus=[diff - wald_lo], visible=True), marker=dict(size=12, color="#AB63FA")))
-fig_ci.add_trace(go.Scatter(x=[diff], y=["Newcombe (Wilson Score)"], mode="markers", error_x=dict(type="data", array=[newc_hi - diff], arrayminus=[diff - newc_lo], visible=True), marker=dict(size=12, color="#EF553B")))
+# Wald CI
+fig_ci.add_trace(go.Scatter(
+    x=[diff], y=["Wald (Binomial)"], mode="markers+text",
+    text=[f"[{pct(wald_lo)}, {pct(wald_hi)}]"],
+    textposition="bottom center",
+    error_x=dict(type="data", array=[wald_hi - diff], arrayminus=[diff - wald_lo], visible=True),
+    marker=dict(size=12, color="#AB63FA")
+))
+# Newcombe CI
+fig_ci.add_trace(go.Scatter(
+    x=[diff], y=["Newcombe (Wilson)"], mode="markers+text",
+    text=[f"[{pct(newc_lo)}, {pct(newc_hi)}]"],
+    textposition="bottom center",
+    error_x=dict(type="data", array=[newc_hi - diff], arrayminus=[diff - newc_lo], visible=True),
+    marker=dict(size=12, color="#EF553B")
+))
+
 fig_ci.add_vline(x=0, line_dash="dash", line_color="gray")
-fig_ci.update_layout(height=280, xaxis_title="Abs Difference (B - A)")
+fig_ci.update_layout(height=350, xaxis_title="Abs Difference (B - A)", showlegend=False)
 st.plotly_chart(fig_ci, use_container_width=True)
 
 # 3) Peeking Danger Demo
@@ -247,7 +263,6 @@ if show_peeking:
     
     example_p_journey = []
     a_hits, b_hits = rng.binomial(1, p1, size=n_total), rng.binomial(1, p1, size=n_total)
-    
     for n_pt in sample_points:
         xa, xb = a_hits[:n_pt].sum(), b_hits[:n_pt].sum()
         _, p_val = two_prop_ztest(xa, n_pt, xb, n_pt)
@@ -272,4 +287,4 @@ if show_peeking:
         st.plotly_chart(fig_journey, use_container_width=True)
     with col_peek_stats:
         st.metric("Actual False Positive Rate", f"{fp_rate:.1%}")
-        st.info(f"By checking results {looks} times instead of once at the end, your error rate is {fp_rate/alpha:.1f}x higher than your alpha threshold.")
+        st.info(f"Checking results {looks} times instead of once increases your error rate by {fp_rate/alpha:.1f}x.")
