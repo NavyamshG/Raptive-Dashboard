@@ -1,27 +1,27 @@
 import streamlit as st
 import numpy as np
-import pandas as pd
 import plotly.graph_objects as go
 import scipy.stats as stats
 import math
 
 # ============================================================
 # CTR Inference Lab (Simple + Intuitive)
-# Keep: z-test + t-test + Fisher comparison (as requested)
-# Add: very simple "peeking inflates false positives" demo
-# Remove: extra tables / complex curves
+# - Keep: z-test + t-test + Fisher comparison
+# - Add: Simple CI visual (Wald vs Newcombe/Wilson) for Δ CTR
+# - Keep: Simple peeking demo
 # ============================================================
 
 st.set_page_config(page_title="CTR Inference Lab", layout="wide")
 st.title("📊 CTR Inference Lab")
-st.caption("Compare z-test vs t-test vs Fisher for CTR (Bernoulli/Binomial). Plus: peeking inflates false positives.")
+st.caption("Compare z-test vs t-test vs Fisher for CTR. See how CI methods differ. Plus: peeking inflates false positives.")
 
 with st.expander("📘 What this demonstrates", expanded=True):
     st.markdown(
         """
-**Two simple takeaways:**
+**Three simple takeaways:**
 1) **Same CTR data, different tests → different p-values** (especially at small n / low CTR).
-2) **Peeking** (checking results many times and stopping early) **inflates false positives** even when there is no real effect.
+2) **Confidence intervals (CI) can differ by method** (Wald can be unstable; Wilson/Newcombe is usually safer).
+3) **Peeking** (checking results many times and stopping early) **inflates false positives** even when there is no real effect.
         """
     )
 
@@ -77,6 +77,33 @@ def fishers_exact(x1, n1, x2, n2):
     oddsratio, p = stats.fisher_exact(table, alternative="two-sided")
     return oddsratio, p
 
+def norm_ppf(p: float) -> float:
+    return stats.norm.ppf(p)
+
+def wald_ci_diff(x1, n1, x2, n2, alpha=0.05):
+    p1 = x1 / n1
+    p2 = x2 / n2
+    d = p2 - p1
+    se = math.sqrt(p1 * (1 - p1) / n1 + p2 * (1 - p2) / n2)
+    z = norm_ppf(1 - alpha / 2)
+    return d, d - z * se, d + z * se
+
+def wilson_ci_single(x, n, alpha=0.05):
+    if n == 0:
+        return np.nan, np.nan
+    z = norm_ppf(1 - alpha / 2)
+    p = x / n
+    denom = 1 + (z**2) / n
+    center = (p + (z**2) / (2 * n)) / denom
+    half = (z / denom) * math.sqrt((p * (1 - p) / n) + (z**2) / (4 * n**2))
+    return max(0.0, center - half), min(1.0, center + half)
+
+def newcombe_ci_diff(x1, n1, x2, n2, alpha=0.05):
+    l1, u1 = wilson_ci_single(x1, n1, alpha)
+    l2, u2 = wilson_ci_single(x2, n2, alpha)
+    d = (x2 / n2) - (x1 / n1)
+    return d, (l2 - u1), (u2 - l1)
+
 def pct(x):
     return f"{x:.2%}" if np.isfinite(x) else "NA"
 
@@ -116,11 +143,14 @@ diff = p2 - p1
 rel = diff / p1 if p1 > 0 else np.nan
 
 # -------------------------
-# Tests
+# Tests + CIs
 # -------------------------
 z_stat, z_p = two_prop_ztest(x1, n1, x2, n2)
 t_stat, t_df, t_p = welch_ttest_bernoulli(x1, n1, x2, n2)
 odds, f_p = fishers_exact(x1, n1, x2, n2)
+
+wald_d, wald_lo, wald_hi = wald_ci_diff(x1, n1, x2, n2, alpha=alpha)
+newc_d, newc_lo, newc_hi = newcombe_ci_diff(x1, n1, x2, n2, alpha=alpha)
 
 # -------------------------
 # KPIs
@@ -138,7 +168,7 @@ with c4:
 st.divider()
 
 # -------------------------
-# Simple comparison (keep z, t, Fisher)
+# 1) Test comparison (z, t, Fisher)
 # -------------------------
 st.subheader("1) Same data, different tests")
 
@@ -146,14 +176,11 @@ colL, colR = st.columns([1.2, 1])
 with colL:
     st.markdown(
         """
-You are testing **H0: CTR is the same**.
+**Goal:** test whether CTR differs between A and B.
 
-These tests answer the same question but use different assumptions:
-- **z-test:** normal approximation for proportions
-- **t-test:** treats 0/1 as numeric and estimates variance (often similar when n is large)
-- **Fisher:** exact test for the 2×2 table (strongest at small counts)
-
-At small n / low CTR, they can disagree.
+- **z-test:** normal approximation for proportions  
+- **t-test:** treats 0/1 as numeric (often close for big n)  
+- **Fisher:** exact test for the 2×2 table (best when counts are small)
         """
     )
 with colR:
@@ -178,21 +205,70 @@ fig_methods.add_trace(go.Bar(
     textposition="auto"
 ))
 fig_methods.add_hline(y=alpha)
-fig_methods.update_layout(
-    yaxis_title="p-value",
-    height=330,
-    showlegend=False
-)
+fig_methods.update_layout(yaxis_title="p-value", height=320, showlegend=False)
 st.plotly_chart(fig_methods, use_container_width=True)
 st.caption("Bars below the α line are statistically significant.")
 
 st.divider()
 
 # -------------------------
-# Peeking demo (simple)
+# 2) Simple CI visual (Wald vs Newcombe/Wilson)
+# -------------------------
+st.subheader("2) Confidence interval for Δ CTR (two methods)")
+
+st.markdown(
+    """
+**Same estimate (Δ CTR), different CI math.**  
+Wald can be too optimistic or weird at small n / extreme CTR. Newcombe/Wilson is usually more stable.
+    """
+)
+
+fig_ci = go.Figure()
+fig_ci.add_trace(go.Scatter(
+    x=[wald_lo, wald_hi],
+    y=["Wald", "Wald"],
+    mode="lines",
+    name="Wald CI"
+))
+fig_ci.add_trace(go.Scatter(
+    x=[newc_lo, newc_hi],
+    y=["Newcombe/Wilson", "Newcombe/Wilson"],
+    mode="lines",
+    name="Newcombe/Wilson CI"
+))
+fig_ci.add_trace(go.Scatter(
+    x=[diff],
+    y=["Observed Δ", "Observed Δ"],
+    mode="markers",
+    name="Observed Δ",
+    marker=dict(size=10)
+))
+fig_ci.add_vline(x=0)
+
+fig_ci.update_layout(
+    xaxis_title="Δ CTR (B − A)",
+    yaxis_title="",
+    height=320,
+    showlegend=True
+)
+st.plotly_chart(fig_ci, use_container_width=True)
+
+cA, cB = st.columns(2)
+with cA:
+    st.metric("Wald CI", f"[{pct(wald_lo)}, {pct(wald_hi)}]")
+with cB:
+    st.metric("Newcombe/Wilson CI", f"[{pct(newc_lo)}, {pct(newc_hi)}]")
+
+st.caption("If the CI crosses 0, the data is compatible with no difference (at this confidence level).")
+
+st.divider()
+
+# -------------------------
+# 3) Peeking demo
 # -------------------------
 if show_peeking:
-    st.subheader("2) Peeking inflates false positives (simple demo)")
+    st.subheader("3) Peeking inflates false positives (simple demo)")
+
     st.markdown(
         """
 **Setup:** there is **no real difference** (A and B have the same true CTR).  
@@ -240,10 +316,8 @@ But if you check results many times and stop when p ≤ α, you will “find” 
     fig_peek.update_layout(
         xaxis_title="Which look triggered significance first (1..k)",
         yaxis_title="count",
-        height=330
+        height=320
     )
     st.plotly_chart(fig_peek, use_container_width=True)
 
-    st.caption(
-        "This shows why sequential testing needs correction (alpha-spending, group sequential tests, always-valid methods)."
-    )
+    st.caption("This is why sequential testing needs correction (alpha-spending, group sequential tests, always-valid methods).")
