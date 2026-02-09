@@ -179,6 +179,7 @@ But if you check results many times and stop the first time p ≤ α, you will �
             any_fp += 1
             first_hit.append(hit_at)
 
+    
     fp_rate = any_fp / sims
 
     colA, colB, colC = st.columns(3)
