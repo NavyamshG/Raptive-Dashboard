@@ -57,7 +57,7 @@ pip install streamlit pandas numpy matplotlib seaborn scipy.stats plotly.graph_o
    ```
 ---
 
-## 🖼️ Preview
+## Preview
 
 
 <img src="image1.png" alt="Raptive-Dashboard" width="800"/>
