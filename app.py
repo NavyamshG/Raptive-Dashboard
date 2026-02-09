@@ -5,95 +5,78 @@ import plotly.graph_objects as go
 import scipy.stats as stats
 
 # -------------------------
-# CONFIG
+# CONFIG (reframed to match prompt)
 # -------------------------
-st.set_page_config(page_title="Raptive Decision Engine", layout="wide")
-st.title("🏆 Executive A/B Decision Engine")
-st.caption("Bayesian A/B decisioning with optional historical baseline")
-
-rng = np.random.default_rng()
+st.set_page_config(page_title="Beta-Binomial Simulation Lab", layout="wide")
+st.title("📊 Beta-Binomial Simulation Lab")
+st.caption("Demonstrating an interesting statistical property of the Beta distribution: conjugacy + posterior shrinkage")
 
 # -------------------------
-# SIDEBAR
+# EXPLANATION (make it explicit)
+# -------------------------
+with st.expander("📘 What is this demonstrating?", expanded=True):
+    st.markdown(
+        """
+**Distribution:** Beta distribution (a probability distribution over rates in \[0,1\])
+
+**Statistical property demonstrated:**
+- **Bayesian conjugacy (Beta-Binomial):** If your prior is Beta and your data is Binomial, the posterior is still Beta.
+- **Posterior shrinkage:** With small samples, estimates are pulled toward the prior; with large samples, data dominates.
+- **Uncertainty shrinkage:** Posterior variance decreases as sample size increases.
+
+Use the sliders to change the prior and sample sizes, then observe how the posterior moves and tightens.
+        """
+    )
+
+# -------------------------
+# SIDEBAR (stats-first controls)
 # -------------------------
 with st.sidebar:
-    st.header("📊 Experiment Inputs")
+    st.header("🎛️ Controls")
 
-    with st.expander("Current Test Data", expanded=True):
-        col_a, col_b = st.columns(2)
-
-        clicks_a = col_a.number_input("Control Clicks", value=100, min_value=0, step=1)
-        views_a = col_a.number_input("Control Views", value=1000, min_value=0, step=1)
-
-        clicks_b = col_b.number_input("Variant Clicks", value=130, min_value=0, step=1)
-        views_b = col_b.number_input("Variant Views", value=1100, min_value=0, step=1)
-
-    with st.expander("⚙️ Historical Baseline (Prior)", expanded=True):
-        st.write("Use business knowledge as a prior for the baseline rate.")
-        hist_ctr = st.slider("Historical CTR (%)", 0.01, 30.0, 10.0) / 100.0
-
+    with st.expander("Prior (Beta) settings", expanded=True):
+        hist_ctr = st.slider("Prior mean (%)", 0.01, 30.0, 10.0) / 100.0
         prior_weight = st.number_input(
-            "Prior Strength (effective trials)",
+            "Prior strength (effective trials)",
             value=500,
             min_value=0,
             step=50,
-            help="Higher = prior dominates more. Set 0 to disable prior."
+            help="0 disables the historical prior and falls back to Jeffreys prior (0.5, 0.5)."
         )
 
+    with st.expander("Observed data (Binomial)", expanded=True):
+        col_a, col_b = st.columns(2)
+
+        clicks_a = col_a.number_input("Group A successes", value=100, min_value=0, step=1)
+        views_a = col_a.number_input("Group A trials", value=1000, min_value=0, step=1)
+
+        clicks_b = col_b.number_input("Group B successes", value=130, min_value=0, step=1)
+        views_b = col_b.number_input("Group B trials", value=1100, min_value=0, step=1)
+
         prior_mode = st.radio(
-            "Prior Mode",
+            "How to apply the prior?",
             options=["Shared prior (A & B)", "Baseline-only prior (A only)"],
-            help="Shared prior anchors both arms equally. Baseline-only anchors control; variant uses a weak prior."
+            help="Shared prior anchors both groups equally. Baseline-only anchors A; B uses a weak stabilizer."
         )
 
         weak_prior_weight = st.number_input(
-            "Variant weak prior weight (only for Baseline-only mode)",
+            "B weak prior strength (Baseline-only mode)",
             value=2,
             min_value=0,
             step=1,
             help="Small stabilizer for B when not sharing the historical prior."
         )
 
-    with st.expander("🎯 Decision Thresholds", expanded=True):
-        mde_percent = st.slider(
-            "Practical threshold (MDE) %",
-            0.0, 10.0, 1.0, 0.1,
-            help="Minimum lift that is worth shipping."
-        ) / 100.0
-
-        deploy_conf = st.slider(
-            "Deploy when P(lift > MDE) ≥",
-            0.50, 0.99, 0.90, 0.01
-        )
-
-        loss_cap = st.slider(
-            "Loss risk cap P(lift < 0) ≤",
-            0.01, 0.50, 0.10, 0.01
-        )
-
-    with st.expander("💰 Financial Model", expanded=True):
-        traffic_unit = st.selectbox(
-            "Traffic unit",
-            ["Monthly Impressions", "Monthly Sessions", "Monthly Visitors"],
-            index=0
-        )
-
-        monthly_traffic = st.number_input(f"{traffic_unit}", value=100000, min_value=0, step=1000)
-
-        # If user chooses visitors, allow views per visitor
-        views_per_unit = st.number_input(
-            "Views per unit (multiplier)",
-            value=1.0,
-            min_value=0.0,
-            step=0.1,
-            help="If you input Visitors/Sessions but CTR is defined on views/impressions, set the average views per unit."
-        )
-
-        val_per_click = st.number_input("Value per Click ($)", value=50.0, min_value=0.0, step=1.0)
-
-    with st.expander("🧪 Simulation", expanded=False):
+    with st.expander("Simulation", expanded=False):
         n_sims = st.slider("Posterior draws", 2000, 50000, 20000, 1000)
         seed = st.number_input("Seed", value=42, min_value=0, step=1)
+
+    with st.expander("Meaningful effect (optional)", expanded=False):
+        mde_percent = st.slider(
+            "Meaningful lift threshold (MDE) %",
+            0.0, 10.0, 1.0, 0.1,
+            help="Used only to summarize P(lift > threshold)."
+        ) / 100.0
 
 
 # -------------------------
@@ -101,288 +84,268 @@ with st.sidebar:
 # -------------------------
 def validate(clicks: int, views: int, label: str) -> None:
     if views < clicks:
-        st.error(f"{label}: Views must be ≥ Clicks (got clicks={clicks}, views={views}).")
+        st.error(f"{label}: trials must be ≥ successes (got successes={clicks}, trials={views}).")
         st.stop()
     if views == 0:
-        st.error(f"{label}: Views must be > 0 to estimate a rate.")
+        st.error(f"{label}: trials must be > 0 to estimate a rate.")
         st.stop()
 
-validate(clicks_a, views_a, "Control")
-validate(clicks_b, views_b, "Variant")
+validate(clicks_a, views_a, "Group A")
+validate(clicks_b, views_b, "Group B")
 
 # -------------------------
-# BAYESIAN MODEL
+# BAYESIAN MODEL (Beta-Binomial)
 # -------------------------
-# Beta prior from historical CTR
-# Guard tiny values for stability when prior_weight=0
 alpha_hist = max(prior_weight * hist_ctr, 0.0)
 beta_hist = max(prior_weight * (1.0 - hist_ctr), 0.0)
 
-def beta_params_for_arm(clicks, views, arm: str):
+def beta_params_for_group(successes, trials, group: str):
     """
-    Returns (alpha, beta) posterior params.
+    Beta-Binomial conjugacy:
+      Prior: Beta(alpha0, beta0)
+      Data:  Binomial(successes | trials, p)
+      Posterior: Beta(alpha0 + successes, beta0 + trials - successes)
     """
     if prior_weight == 0:
-        # Jeffreys prior (0.5, 0.5) is a nice default
+        # Jeffreys prior
         a0, b0 = 0.5, 0.5
-        return clicks + a0, (views - clicks) + b0
+        return successes + a0, (trials - successes) + b0
 
     if prior_mode == "Shared prior (A & B)":
-        return clicks + alpha_hist, (views - clicks) + beta_hist
+        a0, b0 = alpha_hist, beta_hist
+        return successes + a0, (trials - successes) + b0
 
-    # Baseline-only prior (A only): historical prior anchors control; variant gets weak stabilizer prior
-    if arm == "A":
-        return clicks + alpha_hist, (views - clicks) + beta_hist
+    # Baseline-only: A gets historical prior, B gets weak prior
+    if group == "A":
+        a0, b0 = alpha_hist, beta_hist
+        return successes + a0, (trials - successes) + b0
     else:
         a0 = max(weak_prior_weight * hist_ctr, 0.0) + 0.5
         b0 = max(weak_prior_weight * (1.0 - hist_ctr), 0.0) + 0.5
-        return clicks + a0, (views - clicks) + b0
+        return successes + a0, (trials - successes) + b0
 
-
-# Simulation
 rng = np.random.default_rng(int(seed))
 
-a_alpha, a_beta = beta_params_for_arm(clicks_a, views_a, "A")
-b_alpha, b_beta = beta_params_for_arm(clicks_b, views_b, "B")
+a_alpha, a_beta = beta_params_for_group(clicks_a, views_a, "A")
+b_alpha, b_beta = beta_params_for_group(clicks_b, views_b, "B")
 
 sim_a = rng.beta(a_alpha, a_beta, int(n_sims))
 sim_b = rng.beta(b_alpha, b_beta, int(n_sims))
 
-# Derived quantities
-lift = (sim_b - sim_a) / np.clip(sim_a, 1e-9, None)
-
-p_b_gt_a = float(np.mean(sim_b > sim_a))
-p_lift_pos = float(np.mean(lift > 0))
-p_lift_gt_mde = float(np.mean(lift > mde_percent))
-p_loss = float(np.mean(lift < 0))
-
-# Credible intervals
+# -------------------------
+# HELPERS
+# -------------------------
 def ci(x, lo=2.5, hi=97.5):
     return float(np.percentile(x, lo)), float(np.percentile(x, hi))
 
 a_ci = ci(sim_a)
 b_ci = ci(sim_b)
+
+a_mean = float(np.mean(sim_a))
+b_mean = float(np.mean(sim_b))
+
+# Interesting probability property: P(B > A)
+p_b_gt_a = float(np.mean(sim_b > sim_a))
+
+# Lift (optional summaries)
+lift = (sim_b - sim_a) / np.clip(sim_a, 1e-9, None)
 lift_ci = ci(lift)
-
-# Central tendency (use median for lift)
 lift_med = float(np.median(lift))
-lift_mean = float(np.mean(lift))
+p_lift_pos = float(np.mean(lift > 0))
+p_lift_gt_mde = float(np.mean(lift > mde_percent))
 
 # -------------------------
-# FINANCIALS FROM SIMULATION (EV + RISK)
+# TOP SUMMARY (stats-first)
 # -------------------------
-annual_traffic_units = float(monthly_traffic) * 12.0
-annual_views = annual_traffic_units * float(views_per_unit)
+k1, k2, k3, k4 = st.columns(4)
 
-# Revenue under each posterior draw (consistent units)
-rev_a = sim_a * annual_views * float(val_per_click)
-rev_b = sim_b * annual_views * float(val_per_click)
-delta_rev = rev_b - rev_a
+with k1:
+    st.metric("Posterior mean (A)", f"{a_mean:.2%}")
+    st.caption(f"95% CI: [{a_ci[0]:.2%}, {a_ci[1]:.2%}]")
 
-delta_ev = float(np.mean(delta_rev))
-delta_p05, delta_p95 = ci(delta_rev, 5, 95)
-p_neg_delta = float(np.mean(delta_rev < 0))
+with k2:
+    st.metric("Posterior mean (B)", f"{b_mean:.2%}")
+    st.caption(f"95% CI: [{b_ci[0]:.2%}, {b_ci[1]:.2%}]")
 
-# Simple baseline (for display only): empirical control CTR * traffic
-emp_ctr_a = clicks_a / views_a
-emp_ctr_b = clicks_b / views_b
-current_annual_rev = emp_ctr_a * annual_views * float(val_per_click)
+with k3:
+    st.metric("P(B > A)", f"{p_b_gt_a:.1%}")
+    st.caption("Probability one Beta draw exceeds another")
 
-# Recommendation logic
-if (p_lift_gt_mde >= deploy_conf) and (p_loss <= loss_cap):
-    rec = "DEPLOY"
-    rec_color = "green"
-elif (p_loss > 0.35) and (p_lift_gt_mde < 0.5):
-    rec = "STOP"
-    rec_color = "red"
-else:
-    rec = "WAIT"
-    rec_color = "orange"
-
-
-# -------------------------
-# TOP KPI STRIP
-# -------------------------
-kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-
-with kpi1:
-    st.metric("P(Variant > Control)", f"{p_b_gt_a:.1%}")
-    st.caption("Win probability")
-
-with kpi2:
-    st.metric("P(Lift > MDE)", f"{p_lift_gt_mde:.1%}")
-    st.caption(f"Meaningful lift (>{mde_percent:.1%})")
-
-with kpi3:
-    st.metric("Median Lift", f"{lift_med:+.2%}")
+with k4:
+    st.metric("Median lift", f"{lift_med:+.2%}")
     st.caption(f"95% CI: [{lift_ci[0]:+.2%}, {lift_ci[1]:+.2%}]")
-
-with kpi4:
-    st.markdown("**Recommendation**")
-    st.markdown(
-        f"<h1 style='color:{rec_color}; margin-top:-15px;'>{rec}</h1>",
-        unsafe_allow_html=True
-    )
-    st.caption("Decision rule uses meaningful lift + loss risk")
 
 st.divider()
 
 # -------------------------
-# TABS
+# TABS (distribution + properties)
 # -------------------------
-tab1, tab2 = st.tabs(["📈 Bayesian Evidence", "💰 Business Impact"])
+tab1, tab2, tab3 = st.tabs(
+    ["📈 Prior vs Posterior", "📉 Uncertainty Shrinks with Sample Size", "🧪 Probability Outcomes"]
+)
 
 with tab1:
-    st.subheader("Prior vs Posterior (Control and Variant)")
-    st.write("This shows how the experiment updates your baseline belief and the uncertainty for each arm.")
+    st.subheader("Beta-Binomial Conjugacy: Prior → Posterior (still Beta)")
+    st.write("The posterior remains a Beta distribution after observing Binomial data (conjugacy).")
 
     x_max = max(sim_a.max(), sim_b.max(), hist_ctr) * 1.5
     x_max = min(x_max, 1.0)
     x_range = np.linspace(0, max(0.02, x_max), 600)
 
-    fig_evol = go.Figure()
+    fig = go.Figure()
 
-    # Plot historical prior only if enabled
     if prior_weight > 0:
         prior_pdf = stats.beta.pdf(x_range, max(alpha_hist, 1e-6), max(beta_hist, 1e-6))
-        fig_evol.add_trace(go.Scatter(
-            x=x_range, y=prior_pdf, name="Historical prior (baseline)",
+        fig.add_trace(go.Scatter(
+            x=x_range, y=prior_pdf, name="Prior (baseline)",
+            line=dict(color="black", dash="dash", width=2)
+        ))
+    else:
+        # Jeffreys prior for reference
+        prior_pdf = stats.beta.pdf(x_range, 0.5, 0.5)
+        fig.add_trace(go.Scatter(
+            x=x_range, y=prior_pdf, name="Jeffreys prior (0.5, 0.5)",
             line=dict(color="black", dash="dash", width=2)
         ))
 
-    control_pdf = stats.beta.pdf(x_range, a_alpha, a_beta)
-    variant_pdf = stats.beta.pdf(x_range, b_alpha, b_beta)
+    a_pdf = stats.beta.pdf(x_range, a_alpha, a_beta)
+    b_pdf = stats.beta.pdf(x_range, b_alpha, b_beta)
 
-    fig_evol.add_trace(go.Scatter(
-        x=x_range, y=control_pdf, name="Control posterior",
-        fill="tozeroy"
-    ))
-    fig_evol.add_trace(go.Scatter(
-        x=x_range, y=variant_pdf, name="Variant posterior",
-        fill="tozeroy"
-    ))
+    fig.add_trace(go.Scatter(x=x_range, y=a_pdf, name="Posterior A", fill="tozeroy"))
+    fig.add_trace(go.Scatter(x=x_range, y=b_pdf, name="Posterior B", fill="tozeroy"))
 
-    fig_evol.update_layout(
-        xaxis_title="CTR / Conversion rate",
+    fig.update_layout(
+        xaxis_title="Rate p",
         yaxis_title="Density",
-        height=420,
+        height=440,
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0)
     )
-    st.plotly_chart(fig_evol, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
 
-    st.divider()
+    st.subheader("Posterior means with credible intervals")
+    fig_bar = go.Figure()
+    y_labels = ["A", "B"]
+    means = [a_mean, b_mean]
+    lows = [a_ci[0], b_ci[0]]
+    highs = [a_ci[1], b_ci[1]]
 
-    left, right = st.columns([1.4, 1.0])
-
-    with left:
-        st.subheader("Posterior Means with 95% Credible Intervals")
-
-        a_mean = float(np.mean(sim_a))
-        b_mean = float(np.mean(sim_b))
-
-        y_labels = ["Control", "Variant"]
-        means = [a_mean, b_mean]
-        ci_low = [a_ci[0], b_ci[0]]
-        ci_high = [a_ci[1], b_ci[1]]
-
-        # Plotly horizontal bar with asymmetric error bars
-        fig_bar = go.Figure()
-
-        fig_bar.add_trace(go.Bar(
-            y=y_labels,
-            x=means,
-            orientation="h",
-            text=[f"{m:.2%}" for m in means],
-            textposition="auto",
-            error_x=dict(
-                type="data",
-                symmetric=False,
-                array=[ci_high[i] - means[i] for i in range(2)],
-                arrayminus=[means[i] - ci_low[i] for i in range(2)],
-                visible=True
-            )
-        ))
-
-        fig_bar.update_layout(
-            xaxis_title="CTR / Conversion rate",
-            height=320,
-            showlegend=False
+    fig_bar.add_trace(go.Bar(
+        y=y_labels,
+        x=means,
+        orientation="h",
+        text=[f"{m:.2%}" for m in means],
+        textposition="auto",
+        error_x=dict(
+            type="data",
+            symmetric=False,
+            array=[highs[i] - means[i] for i in range(2)],
+            arrayminus=[means[i] - lows[i] for i in range(2)],
+            visible=True
         )
-        st.plotly_chart(fig_bar, use_container_width=True)
-
-        st.caption(f"Control 95% CI: [{a_ci[0]:.2%}, {a_ci[1]:.2%}] | Variant 95% CI: [{b_ci[0]:.2%}, {b_ci[1]:.2%}]")
-
-    with right:
-        st.subheader("Outcome Breakdown (Lift)")
-        big_win = float(np.mean(lift > 0.10))
-        meaningful = float(np.mean((lift > mde_percent) & (lift <= 0.10)))
-        small_win = float(np.mean((lift > 0) & (lift <= mde_percent)))
-        loss = float(np.mean(lift <= 0))
-
-        fig_pie = go.Figure(data=[go.Pie(
-            labels=[
-                "Big win (>10%)",
-                f"Meaningful ({mde_percent:.1%} to 10%)",
-                f"Small win (0 to {mde_percent:.1%})",
-                "Loss (≤0)"
-            ],
-            values=[big_win, meaningful, small_win, loss],
-            hole=0.45
-        )])
-        fig_pie.update_layout(height=360, margin=dict(t=30, b=0, l=0, r=0))
-        st.plotly_chart(fig_pie, use_container_width=True)
-
-    st.divider()
-
-    st.subheader("Why this recommendation")
-    bullets = []
-    bullets.append(f"- **P(lift > MDE)** = **{p_lift_gt_mde:.1%}** (threshold: {deploy_conf:.0%})")
-    bullets.append(f"- **P(loss)** = **{p_loss:.1%}** (cap: {loss_cap:.0%})")
-    bullets.append(f"- Median lift = **{lift_med:+.2%}** (95% CI: [{lift_ci[0]:+.2%}, {lift_ci[1]:+.2%}])")
-    bullets.append(f"- Expected annual impact (EV) = **${delta_ev:,.0f}**; 5th–95th = **[${delta_p05:,.0f}, ${delta_p95:,.0f}]**")
-    st.markdown("\n".join(bullets))
+    ))
+    fig_bar.update_layout(xaxis_title="Posterior mean rate", height=280, showlegend=False)
+    st.plotly_chart(fig_bar, use_container_width=True)
 
 with tab2:
-    st.subheader("Annual Financial Impact (Simulated)")
+    st.subheader("Posterior Variance Shrinks as Sample Size Grows")
+    st.write("Holding the prior fixed, adding more trials makes the posterior tighter (lower variance).")
 
-    impact_df = pd.DataFrame({
-        "Metric": [
-            "Traffic unit",
-            "Monthly traffic input",
-            "Views per unit",
-            "Annual views modeled",
-            "Control CTR (empirical)",
-            "Variant CTR (empirical)",
-            "Expected annual revenue (Control, empirical baseline)",
-            "Expected Δ annual revenue (EV)",
-            "5th–95th percentile Δ annual revenue",
-            "P(Δ revenue < 0)"
+    # Simulate variance curve for a range of sample sizes around a chosen base rate
+    # Use the observed A rate as a sensible anchor
+    base_rate = clicks_a / views_a if views_a > 0 else hist_ctr
+
+    # Use sample sizes on a log-like grid for a nicer curve
+    sample_sizes = np.unique(np.round(np.geomspace(10, 50000, 60)).astype(int))
+
+    # Prior for this plot: either historical prior or Jeffreys
+    if prior_weight > 0:
+        a0, b0 = alpha_hist, beta_hist
+    else:
+        a0, b0 = 0.5, 0.5
+
+    variances = []
+    ci_widths = []
+
+    for n in sample_sizes:
+        s = int(round(base_rate * n))
+        f = n - s
+        a_post = a0 + s
+        b_post = b0 + f
+        variances.append(stats.beta.var(a_post, b_post))
+
+        lo = stats.beta.ppf(0.025, a_post, b_post)
+        hi = stats.beta.ppf(0.975, a_post, b_post)
+        ci_widths.append(hi - lo)
+
+    fig_var = go.Figure()
+    fig_var.add_trace(go.Scatter(
+        x=sample_sizes,
+        y=variances,
+        mode="lines",
+        name="Posterior variance"
+    ))
+    fig_var.update_layout(
+        xaxis_title="Sample size (trials)",
+        yaxis_title="Posterior variance",
+        height=420
+    )
+    st.plotly_chart(fig_var, use_container_width=True)
+
+    fig_ci = go.Figure()
+    fig_ci.add_trace(go.Scatter(
+        x=sample_sizes,
+        y=ci_widths,
+        mode="lines",
+        name="95% CI width"
+    ))
+    fig_ci.update_layout(
+        xaxis_title="Sample size (trials)",
+        yaxis_title="Width of 95% credible interval",
+        height=420
+    )
+    st.plotly_chart(fig_ci, use_container_width=True)
+
+    st.caption(
+        "Both curves should fall as sample size increases: uncertainty shrinks with more observations."
+    )
+
+with tab3:
+    st.subheader("Probability Outcomes from Posterior Draws")
+    st.write("Another useful property: probabilities of comparative events can be estimated by Monte Carlo.")
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        st.metric("P(B > A)", f"{p_b_gt_a:.1%}")
+    with c2:
+        st.metric("P(lift > 0)", f"{p_lift_pos:.1%}")
+    with c3:
+        st.metric(f"P(lift > {mde_percent:.1%})", f"{p_lift_gt_mde:.1%}")
+
+    # Outcome buckets
+    big_win = float(np.mean(lift > 0.10))
+    meaningful = float(np.mean((lift > mde_percent) & (lift <= 0.10)))
+    small_win = float(np.mean((lift > 0) & (lift <= mde_percent)))
+    loss = float(np.mean(lift <= 0))
+
+    fig_pie = go.Figure(data=[go.Pie(
+        labels=[
+            "Big win (>10%)",
+            f"Meaningful ({mde_percent:.1%} to 10%)",
+            f"Small win (0 to threshold)",
+            "Loss (≤0)"
         ],
-        "Value": [
-            traffic_unit,
-            f"{monthly_traffic:,.0f}",
-            f"{views_per_unit:,.2f}",
-            f"{annual_views:,.0f}",
-            f"{emp_ctr_a:.2%}",
-            f"{emp_ctr_b:.2%}",
-            f"${current_annual_rev:,.0f}",
-            f"${delta_ev:,.0f}",
-            f"[${delta_p05:,.0f}, ${delta_p95:,.0f}]",
-            f"{p_neg_delta:.1%}"
-        ]
-    })
+        values=[big_win, meaningful, small_win, loss],
+        hole=0.45
+    )])
+    fig_pie.update_layout(height=380, margin=dict(t=30, b=0, l=0, r=0))
+    st.plotly_chart(fig_pie, use_container_width=True)
 
-    st.table(impact_df)
+    st.divider()
 
-    st.info(
-        f"**Insight:** Based on your model and current data, the **expected** annual lift is "
-        f"**${delta_ev:,.0f}** with a 5th–95th range of **[${delta_p05:,.0f}, ${delta_p95:,.0f}]**."
-    )
-
-    st.subheader("Assumptions (make these explicit)")
-    st.markdown(
-        "- CTR is modeled as a Bernoulli rate over **views** (impressions).\n"
-        f"- Your traffic input is **{traffic_unit}** and is converted into annual views via **views per unit = {views_per_unit:.2f}**.\n"
-        f"- Value per click = **${val_per_click:,.2f}**.\n"
-        f"- Prior strength = **{prior_weight}** effective trials (mode: **{prior_mode}**)."
-    )
+    st.subheader("Raw data (for transparency)")
+    st.table(pd.DataFrame({
+        "Group": ["A", "B"],
+        "Successes": [clicks_a, clicks_b],
+        "Trials": [views_a, views_b],
+        "Empirical rate": [f"{clicks_a/views_a:.2%}", f"{clicks_b/views_b:.2%}"]
+    }))
