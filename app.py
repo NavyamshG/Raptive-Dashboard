@@ -10,26 +10,41 @@ import math
 
 st.set_page_config(page_title="CTR Inference Lab", layout="wide")
 
-# Custom CSS for punchier metrics
+# Custom CSS for punchier metrics and professional text blocks
 st.markdown("""
     <style>
     [data-testid="stMetricValue"] { font-size: 28px; }
+    .main-header { font-size: 2.2rem; font-weight: 700; color: #1E1E1E; margin-bottom: 0; }
+    .sub-header { font-size: 1.2rem; color: #5E5E5E; margin-top: 0; margin-bottom: 20px; }
     .description-box {
         background-color: #f9f9f9;
-        padding: 15px;
+        padding: 20px;
         border-radius: 8px;
         border-left: 5px solid #ff4b4b;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
+    }
+    .explanation-text {
+        font-size: 1rem;
+        line-height: 1.5;
+        color: #333;
     }
     </style>
     """, unsafe_allow_html=True)
 
-st.title("📊 CTR Inference Lab")
+# Professional Headers
+st.markdown('<p class="main-header">📊 CTR Inference Lab</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-header">Evaluating Estimator Robustness: How Distributional Assumptions Impact Significance in Discrete A/B Testing</p>', unsafe_allow_html=True)
 
-# Dashboard Description
+# Dashboard Summary & Explanation
 st.markdown("""
 <div class="description-box">
-    <strong>Dashboard Objective:</strong> I'm trying to show how p-values and confidence vary when we use a Bernoulli or Binomial approach and run the data with T-test, Z-test, and Fisher's Exact values test.
+    <strong>Project Objective:</strong> 
+    Evaluating p-value and confidence interval variance across Bernoulli and Binomial modeling frameworks to compare the sensitivity of Z-test, Welch’s T-test, and Fisher’s Exact methods.
+    <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ddd;">
+    <div class="explanation-text">
+        <strong>Simple Explanation:</strong><br>
+        This lab demonstrates how different mathematical "lenses" interpret the same data, comparing the standard bell-curve approximations of Z and T-tests against the exact probability calculations of Fisher’s method. It reveals whether a statistical "win" is a robust result or simply a byproduct of the specific distribution and test selected.
+    </div>
 </div>
 """, unsafe_allow_html=True)
 
@@ -223,7 +238,6 @@ if show_peeking:
     n_total = n1 + n2
     sample_points = np.linspace(10, n_total, looks).astype(int)
     
-    # Simulating a null hypothesis journey
     example_p_journey = []
     a_hits, b_hits = rng.binomial(1, p1, size=n_total), rng.binomial(1, p1, size=n_total)
     
@@ -232,7 +246,6 @@ if show_peeking:
         _, p_val = two_prop_ztest(xa, n_pt, xb, n_pt)
         example_p_journey.append(p_val)
 
-    # Simulation to calculate FPR
     any_fp = 0
     for _ in range(int(sims)):
         a, b = rng.binomial(1, p1, size=n_total), rng.binomial(1, p1, size=n_total)
