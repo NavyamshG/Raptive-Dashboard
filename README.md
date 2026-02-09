@@ -46,7 +46,7 @@ Make sure Python 3.8+ is installed.
 ```bash
 pip install streamlit pandas numpy matplotlib seaborn scipy plotly
 
-```bash
+```
 
 2. **Run the app:**
    
@@ -54,7 +54,7 @@ pip install streamlit pandas numpy matplotlib seaborn scipy plotly
    
    streamlit run Home.py
    
-   ```bash
+   ```
 ---
 
 ## 🖼️ Preview
