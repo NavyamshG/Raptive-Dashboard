@@ -28,9 +28,23 @@ You will observe a scenario where the Z and T tests declare a **Winner**, while 
 
 ### 1. Requirements
 Ensure you have Python 3.8+ installed. You will need the following libraries:
-```bash
-pip install streamlit numpy scipy plotly
+
 
 ```bash
+pip install streamlit numpy scipy plotly
+- Dependencies (listed in `requirements.txt`):
+  - streamlit
+  - pandas
+  - numpy
+  - matplotlib
+  - seaborn
+  - scipy
+  - plotly
+```bash
+
+### 2. Run the app
+```bash
 streamlit run app.py
+```bash
+
 
