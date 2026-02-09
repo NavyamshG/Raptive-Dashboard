@@ -16,11 +16,16 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 28px; }
     
     .main-header { 
-        font-size: 20.0rem; 
-        font-weight: 900; 
-        color: #1E1E1E; 
-        margin-bottom: 0;
-        line-height: 1.1;
+/* MASSIVE HEADER STYLING */
+    .main-header { 
+        font-size: 6rem;           /* Dramatically larger scale */
+        font-weight: 900;           /* Maximum thickness */
+        color: #1E1E1E;             /* Deep charcoal for punch */
+        margin-bottom: -15px;       /* Pulls sub-header closer */
+        line-height: 1;             /* Prevents excessive vertical spacing */
+        letter-spacing: -3px;       /* Gives it a tight, professional look */
+        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    }
     }
     
     .sub-header { 
