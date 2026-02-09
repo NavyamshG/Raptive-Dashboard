@@ -45,11 +45,20 @@ with tab1:
     with col1:
         st.subheader("Performance Density")
         fig, ax = plt.subplots(figsize=(10, 5))
-        ax.plot(x, y_a, label="Control", color='#95a5a6', lw=3)
-        ax.fill_between(x, 0, y_a, alpha=0.2, color='#95a5a6')
-        ax.plot(x, y_b, label="Variant", color='#2ecc71', lw=3)
-        ax.fill_between(x, 0, y_b, alpha=0.2, color='#2ecc71')
+        
+        # Plotting the distributions
+        ax.plot(x, y_a, label="Control (Current)", color='#95a5a6', lw=3)
+        ax.fill_between(x, 0, y_a, alpha=0.1, color='#95a5a6')
+        
+        ax.plot(x, y_b, label="Variant (New)", color='#2ecc71', lw=3)
+        ax.fill_between(x, 0, y_b, alpha=0.3, color='#2ecc71')
+        
+        # Visualizing the "Win" - Shading where Variant > Control Mean
+        mean_a = clicks_a / views_a
+        ax.axvline(mean_a, color='#e74c3c', linestyle='--', alpha=0.6, label="Control Baseline")
+        
         ax.set_xlabel("Conversion Rate (CTR)")
+        ax.set_title("How much overlap is there?", fontsize=12, pad=10)
         ax.legend()
         st.pyplot(fig)
     
