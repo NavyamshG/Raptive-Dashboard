@@ -231,8 +231,14 @@ st.divider()
 
 # 2) Confidence Intervals
 st.subheader("2) Delta Confidence Intervals")
-st.markdown(f"**Wald Interval (Binomial):** `{pct(wald_lo)}` to `{pct(wald_hi)}` \n"
-            f"**Newcombe Interval (Wilson):** `{pct(newc_lo)}` to `{pct(newc_hi)}`")
+
+
+# Moved into two separate lines for clarity
+st.markdown(f"**Wald Interval (Binomial):** `{pct(wald_lo)}` to `{pct(wald_hi)}` ")
+st.markdown(f"**Newcombe Interval (Wilson):** `{pct(newc_lo)}` to `{pct(newc_hi)}` ")
+
+fig_ci = go.Figure()
+# ... (rest of the plotting code remains the same)
 
 fig_ci = go.Figure()
 fig_ci.add_trace(go.Scatter(x=[diff], y=["Wald (Binomial)"], mode="markers", error_x=dict(type="data", array=[wald_hi - diff], arrayminus=[diff - wald_lo], visible=True), marker=dict(size=12, color="#AB63FA")))
