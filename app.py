@@ -86,21 +86,22 @@ with tab2:
         
         # 1. Big Metric Cards for Scannability
         kpi1, kpi2 = st.columns(2)
-        kpi1.metric("Confidence in Variant", f"{prob_win:.1%}", help="The probability that the Variant is genuinely better than the Control.")
-        kpi2.metric("Expected Revenue Lift", f"{avg_uplift:+.1%}", help="The most likely performance increase you will see.")
+        kpi1.metric("Confidence in Variant", f"{prob_win:.1%}", 
+                    help="Probability that the Variant is genuinely better.")
+        kpi2.metric("Expected Lift", f"{avg_uplift:+.1%}", 
+                    help="The most likely performance increase.")
 
         st.divider()
 
-        # 2. Risk Assessment Logic
+        # 2. Status-Based Alerts
         if worst_case < 0:
-            st.warning(f"⚠️ **Caution:** There is still a small risk. In the worst-case scenario, performance could drop by **{abs(worst_case):.1%}**. Consider gathering more data.")
+            st.warning(f"⚠️ **Caution:** Potential risk detected. Worst-case scenario is a **{abs(worst_case):.1%}** drop. Consider more data.")
         else:
-            st.success(f"✅ **High Confidence:** Even in the worst-case scenario, the Variant outperforms the Control by **{worst_case:.1%}**. This is a safe deploy.")
+            st.success(f"✅ **High Confidence:** Safe to deploy. Even the worst-case is a **{worst_case:.1%}** gain.")
 
-        # 3. Decision Narrative for Non-Technical Leaders
+        # 3. The "Elevator Pitch" (Fixed Syntax)
         st.info(f"""
         **The Bottom Line:**
-        We are **{prob_win:.1%** confident that this change will improve the conversion rate. 
-        If we deploy today, we expect a **{avg_uplift:.1%}** improvement, which translates to 
-        better efficiency across your impressions.
+        We are **{prob_win:.1%}** confident that this change will improve results. 
+        If deployed, we expect a **{avg_uplift:.1%}** improvement in conversion efficiency.
         """)
