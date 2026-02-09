@@ -1,6 +1,5 @@
-# Raptive-Dashboard
-This repo is for Raptive take home.
-# 📊 CTR Inference Lab
+
+#  CTR Inference Lab
 
 A high-impact **Streamlit** laboratory designed for evaluating the robustness of A/B test results. This tool visualizes how different distributional assumptions and statistical "lenses" (Z-test, T-test, and Fisher’s Exact) impact the validity of conversion rate optimization (CRO) decisions.
 
