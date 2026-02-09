@@ -39,9 +39,14 @@ This highlights approximation risk in moderate sample experiments.
 
 ## 🖼️ Preview
 
-### 🔹 Home Page UI
+
 <img src="image1.png" alt="Raptive-Dashboard" width="800"/>
 
+<img src="image2.png" alt="Raptive-Dashboard" width="800"/>
+
+<img src="image3.png" alt="Raptive-Dashboard" width="800"/>
+
+<img src="image4.png" alt="Raptive-Dashboard" width="800"/>
 
 ## 🛠 Installation & Usage
 
