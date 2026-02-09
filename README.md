@@ -48,11 +48,13 @@ pip install streamlit pandas numpy matplotlib seaborn scipy.stats plotly.graph_o
 
 ```
 
-2. **Run the app:**
+2. **Download the app.py:**
+   
+3. **Run the app:**
    
    ```bash
    
-   streamlit run Home.py
+   streamlit run Home.py 
    
    ```
 ---
