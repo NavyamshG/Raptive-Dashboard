@@ -23,6 +23,25 @@ with st.sidebar:
         val_per_conv = st.number_input("Value per Click ($)", value=50.0)
         monthly_traffic = st.number_input("Monthly Visitors", value=100000)
 
+# --- SIDEBAR: ADD PRIOR SETTINGS ---
+with st.sidebar:
+    with st.expander("⚙️ Historical Prior (Baseline)", expanded=False):
+        st.write("Tell the engine what we already know.")
+        hist_ctr = st.slider("Historical CTR (%)", 0.0, 20.0, 10.0) / 100
+        # "Weight" is how many views this belief is worth. 
+        # Higher = harder to move the needle with new data.
+        prior_weight = st.number_input("Prior Strength (Effective Views)", value=100)
+
+# --- UPDATED BAYESIAN ENGINE ---
+# Calculate Prior Alpha and Beta based on historical CTR and weight
+alpha_prior = prior_weight * hist_ctr
+beta_prior = prior_weight * (1 - hist_ctr)
+
+# Inject priors into the Beta distribution
+# Instead of + 1, we add our historical pseudo-observations
+sim_a = np.random.beta(clicks_a + alpha_prior, (views_a - clicks_a) + beta_prior, 10000)
+sim_b = np.random.beta(clicks_b + alpha_prior, (views_b - clicks_b) + beta_prior, 10000)
+
 # --- BAYESIAN ENGINE ---
 # Monte Carlo Simulation
 sim_a = np.random.beta(clicks_a + 1, views_a - clicks_a + 1, 10000)
