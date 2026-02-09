@@ -76,14 +76,31 @@ with tab2:
         ax_lift.set_xlabel("Percent Lift over Control")
         st.pyplot(fig_lift)
     
-    with c2:
-        st.subheader("Business Impact Summary")
-        st.write(f"""
-        - There is a **{prob_b_better:.1%}** chance that the Variant outperforms the Control.
-        - The most likely lift in revenue is **{np.median(relative_lift):.1%}**.
-        - In the worst-case scenario (5th percentile), you might see a lift of **{np.percentile(relative_lift, 5):.1%}**.
-        """)
-        if np.percentile(relative_lift, 5) > 0:
-            st.success("Even the 'worst case' for the Variant is better than the Control. This is a very safe bet.")
+  with c2:
+        st.subheader("🚀 Leadership Decision Dashboard")
+        
+        # Calculate Key Leadership Metrics
+        prob_win = prob_b_better
+        avg_uplift = np.median(relative_lift)
+        worst_case = np.percentile(relative_lift, 5)
+        
+        # 1. Big Metric Cards for Scannability
+        kpi1, kpi2 = st.columns(2)
+        kpi1.metric("Confidence in Variant", f"{prob_win:.1%}", help="The probability that the Variant is genuinely better than the Control.")
+        kpi2.metric("Expected Revenue Lift", f"{avg_uplift:+.1%}", help="The most likely performance increase you will see.")
 
-st.info("**Strategy:** Use the 'Lift Distribution' to set revenue expectations for stakeholders.")
+        st.divider()
+
+        # 2. Risk Assessment Logic
+        if worst_case < 0:
+            st.warning(f"⚠️ **Caution:** There is still a small risk. In the worst-case scenario, performance could drop by **{abs(worst_case):.1%}**. Consider gathering more data.")
+        else:
+            st.success(f"✅ **High Confidence:** Even in the worst-case scenario, the Variant outperforms the Control by **{worst_case:.1%}**. This is a safe deploy.")
+
+        # 3. Decision Narrative for Non-Technical Leaders
+        st.info(f"""
+        **The Bottom Line:**
+        We are **{prob_win:.1%** confident that this change will improve the conversion rate. 
+        If we deploy today, we expect a **{avg_uplift:.1%}** improvement, which translates to 
+        better efficiency across your impressions.
+        """)
