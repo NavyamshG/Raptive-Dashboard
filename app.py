@@ -64,15 +64,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Magic Scenario Callout
-st.markdown("""
-<div style="background-color: #e8f4f8; padding: 15px; border-radius: 10px; border: 1px solid #add8e6; margin-bottom: 25px;">
-    <span style="font-size: 1.1rem;">✨ <strong>To see a magic:</strong> 
-    Set Control clicks: <strong>20</strong>, Control views: <strong>200</strong>, 
-    Variant clicks: <strong>35</strong>, Variant views: <strong>200</strong>, 
-    and Significance level: <strong>0.04</strong></span>
-</div>
-""", unsafe_allow_html=True)
 
 # -------------------------
 # Helpers
@@ -225,6 +216,16 @@ with col_results:
     fig_p.add_hline(y=alpha, line_dash="dash")
     fig_p.update_layout(height=200, margin=dict(l=0, r=0, t=10, b=0))
     st.plotly_chart(fig_p, use_container_width=True)
+
+# Magic Scenario Callout placed under the graphs
+    st.markdown("""
+    <div style="background-color: #e8f4f8; padding: 15px; border-radius: 10px; border: 1px solid #add8e6; margin-top: 20px;">
+        <span style="font-size: 1.1rem;">✨ <strong>To see a magic:</strong> 
+        Set Control clicks: <strong>20</strong>, Control views: <strong>200</strong>, 
+        Variant clicks: <strong>35</strong>, Variant views: <strong>200</strong>, 
+        and Significance level: <strong>0.04</strong></span>
+    </div>
+    """, unsafe_allow_html=True)
 
 st.divider()
 
