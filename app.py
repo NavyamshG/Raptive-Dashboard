@@ -46,7 +46,7 @@ st.write(f"""
             background: linear-gradient(to right, #1E1E1E, #ff4b4b);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
-        ">📊 CTR Inference Lab</span>
+        "> CTR Inference Lab</span>
     </h1>
 """, unsafe_allow_html=True)
 
