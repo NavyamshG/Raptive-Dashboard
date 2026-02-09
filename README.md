@@ -48,9 +48,13 @@ pip install streamlit pandas numpy matplotlib seaborn scipy plotly
  ```bash
 
 2. **Run the app:**
+   
    ```bash
+   
    streamlit run Home.py
+   
    ```bash
+---
 
 ## 🖼️ Preview
 
