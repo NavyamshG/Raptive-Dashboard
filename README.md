@@ -37,6 +37,21 @@ This highlights approximation risk in moderate sample experiments.
 
 ---
 
+## 🛠 Installation & Usage
+
+### 1 Install Dependencies
+
+Make sure Python 3.8+ is installed.
+
+```bash
+pip install streamlit pandas numpy matplotlib seaborn scipy plotly
+ ```bash
+
+2. **Run the app:**
+   ```bash
+   streamlit run Home.py
+   ```bash
+
 ## 🖼️ Preview
 
 
@@ -48,15 +63,3 @@ This highlights approximation risk in moderate sample experiments.
 
 <img src="image4.png" alt="Raptive-Dashboard" width="800"/>
 
-## 🛠 Installation & Usage
-
-### 1 Install Dependencies
-
-Make sure Python 3.8+ is installed.
-
-```bash
-pip install streamlit pandas numpy matplotlib seaborn scipy plotly
-
-### 2. Install Dependencies
-
-streamlit run app.py
