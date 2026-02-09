@@ -4,9 +4,8 @@ import plotly.graph_objects as go
 import scipy.stats as stats
 import math
 
-
 # ============================================================
-# CTR Inference Lab (Full Merged Version)
+# CTR Inference Lab (The "Clear Verdict" Edition)
 # ============================================================
 
 st.set_page_config(page_title="CTR Inference Lab", layout="wide")
@@ -121,7 +120,16 @@ rel = diff / p1 if p1 > 0 else np.nan
 z_stat, z_p = two_prop_ztest(x1, n1, x2, n2)
 t_stat, t_df, t_p = welch_ttest_bernoulli(x1, n1, x2, n2)
 odds, f_p = fishers_exact(x1, n1, x2, n2)
-is_significant = z_p <= alpha
+
+# Logic for Won/Lost Verdict
+tests = {
+    "z-test": z_p,
+    "t-test": t_p,
+    "Fisher": f_p
+}
+wins = [name for name, p in tests.items() if np.isfinite(p) and p <= alpha]
+losses = [name for name, p in tests.items() if np.isfinite(p) and p > alpha]
+is_significant = len(wins) > 0 # At least one test says significant
 
 # CIs
 wald_d, wald_lo, wald_hi = wald_ci_diff(x1, n1, x2, n2, alpha=alpha)
@@ -134,21 +142,21 @@ c1, c2, c3, c4 = st.columns(4)
 c1.metric("Control CTR", pct(p1))
 c2.metric("Variant CTR", pct(p2))
 
-# Color coding for the lift
-lift_color = "normal" if is_significant else "off"
+# Color coding for the lift (based on z-test primarily)
+lift_color = "normal" if (z_p <= alpha) else "off"
 c3.metric("Δ CTR (Abs)", pct(diff), f"Rel: {pct(rel)}", delta_color=lift_color)
-c4.metric("Statistical Confidence", pct(1 - z_p) if np.isfinite(z_p) else "NA")
+c4.metric("Confidence (z-test)", pct(1 - z_p) if np.isfinite(z_p) else "NA")
 
 st.divider()
 
 # -------------------------
-# 1) Visual Evidence (The Overlap)
+# 1) Visual Evidence & Test Comparison
 # -------------------------
-st.subheader("1) The 'Overlap' View")
-col_plot, col_text = st.columns([2, 1])
+st.subheader("1) The 'Overlap' & Test Comparison")
+col_plot, col_results = st.columns([1.5, 1])
 
 with col_plot:
-    # Distribution Curves
+    # Distribution Curves (The Intuitive View)
     x_axis = np.linspace(max(0, min(p1, p2) - 0.15), min(1, max(p1, p2) + 0.15), 500)
     se1 = math.sqrt(p1*(1-p1)/n1) if p1 > 0 else 0.01
     se2 = math.sqrt(p2*(1-p2)/n2) if p2 > 0 else 0.01
@@ -162,18 +170,30 @@ with col_plot:
     fig_dist.update_layout(height=350, margin=dict(l=0, r=0, t=20, b=0), xaxis_title="CTR Range", yaxis_title="Probability Density")
     st.plotly_chart(fig_dist, use_container_width=True)
 
-with col_text:
-    st.markdown("**Verdict**")
-    if is_significant:
-        st.success(f"**Significant Win!** 🎉\n\nVariant B outperformed Control A. We are {(1-z_p):.1%} confident this isn't just luck.")
-    else:
-        st.warning(f"**Not Significant** 😴\n\nThe overlap is too high. Current p-value: {z_p:.4f}. You likely need more samples.")
+with col_results:
+    # Verdict text - Specific to Won/Lost
+    st.markdown("**Test Verdicts**")
+    if wins:
+        st.success(f"**Won according to:** {', '.join(wins)}")
+    if losses:
+        st.error(f"**Lost (Inconclusive) according to:** {', '.join(losses)}")
     
-    st.markdown("**Test Comparison (p-values)**")
-    st.caption("z-test")
-    st.progress(min(z_p, 1.0) if np.isfinite(z_p) else 1.0)
-    st.caption("Fisher Exact")
-    st.progress(min(f_p, 1.0))
+    if not wins:
+        st.warning("No tests reached significance.")
+
+    # Original Bar Chart Comparison
+    fig_methods = go.Figure()
+    fig_methods.add_trace(go.Bar(
+        x=["z-test", "t-test", "Fisher"],
+        y=[z_p if np.isfinite(z_p) else 1.0, t_p if np.isfinite(t_p) else 1.0, f_p],
+        marker_color=['#00CC96' if p <= alpha else '#EF553B' for p in [z_p, t_p, f_p]],
+        text=[f"{p:.4f}" if np.isfinite(p) else "NA" for p in [z_p, t_p, f_p]],
+        textposition="auto"
+    ))
+    fig_methods.add_hline(y=alpha, line_dash="dash", line_color="black")
+    fig_methods.update_layout(yaxis_title="p-value", height=250, margin=dict(l=0, r=0, t=20, b=0), showlegend=False)
+    st.plotly_chart(fig_methods, use_container_width=True)
+    st.caption(f"Bars below the α={alpha} line are statistically significant.")
 
 st.divider()
 
@@ -181,23 +201,20 @@ st.divider()
 # 2) CI Comparison
 # -------------------------
 st.subheader("2) Confidence Intervals for Δ CTR")
-st.markdown("Comparing the standard **Wald** interval against the more robust **Newcombe/Wilson** method.")
 
 fig_ci = go.Figure()
-# Wald
 fig_ci.add_trace(go.Scatter(
     x=[diff], y=["Wald"], mode="markers", name="Wald",
     error_x=dict(type="data", symmetric=False, array=[wald_hi - diff], arrayminus=[diff - wald_lo], visible=True),
     marker=dict(size=12, color="#AB63FA")
 ))
-# Newcombe
 fig_ci.add_trace(go.Scatter(
     x=[diff], y=["Newcombe/Wilson"], mode="markers", name="Newcombe",
     error_x=dict(type="data", symmetric=False, array=[newc_hi - diff], arrayminus=[diff - newc_lo], visible=True),
     marker=dict(size=12, color="#EF553B")
 ))
 fig_ci.add_vline(x=0, line_dash="dash", line_color="gray")
-fig_ci.update_layout(height=300, xaxis_title="Estimated Difference (B - A)", showlegend=False)
+fig_ci.update_layout(height=280, xaxis_title="Estimated Difference (B - A)", showlegend=True)
 st.plotly_chart(fig_ci, use_container_width=True)
 
 ca, cb = st.columns(2)
@@ -211,16 +228,12 @@ st.divider()
 # -------------------------
 if show_peeking:
     st.subheader("3) The Danger of Peeking")
-    st.markdown("Even if **A and B are identical**, checking your results repeatedly increases the chance of a False Positive.")
     
-    # Simulation: P-value Journey
     rng = np.random.default_rng(int(seed))
-    # We simulate a "Live Experiment" where true CTR is equal to p1 for both
     n_total = n1 + n2
     sample_points = np.linspace(10, n_total, looks).astype(int)
     
-    any_fp = 0
-    # One example journey to plot
+    # Simulation Journey
     example_p_journey = []
     a_hits = rng.binomial(1, p1, size=n_total)
     b_hits = rng.binomial(1, p1, size=n_total)
@@ -231,6 +244,7 @@ if show_peeking:
         example_p_journey.append(p_val)
 
     # Multi-simulation False Positive Rate
+    any_fp = 0
     for _ in range(int(sims)):
         a = rng.binomial(1, p1, size=n_total)
         b = rng.binomial(1, p1, size=n_total)
@@ -240,20 +254,17 @@ if show_peeking:
             if p <= alpha:
                 any_fp += 1
                 break
-
     fp_rate = any_fp / sims
     
     col_peek_chart, col_peek_stats = st.columns([2, 1])
-    
     with col_peek_chart:
         fig_journey = go.Figure()
         fig_journey.add_trace(go.Scatter(x=sample_points, y=example_p_journey, mode='lines+markers', name='P-value Journey', line_color='#FF4B4B'))
-        fig_journey.add_hline(y=alpha, line_dash="dash", line_color="black", annotation_text="Significance Threshold")
-        fig_journey.update_layout(height=350, xaxis_title="Sample Size (Time)", yaxis_title="P-Value", yaxis_range=[0, 1])
+        fig_journey.add_hline(y=alpha, line_dash="dash", line_color="black", annotation_text="Threshold")
+        fig_journey.update_layout(height=350, xaxis_title="Cumulative Sample Size", yaxis_title="P-Value", yaxis_range=[0, 1])
         st.plotly_chart(fig_journey, use_container_width=True)
-        st.caption("A single simulation showing how the p-value 'dances' around the threshold.")
 
     with col_peek_stats:
-        st.metric("Actual False Positive Rate", f"{fp_rate:.1%}")
-        st.metric("Target Error Rate (α)", f"{alpha:.1%}")
-        st.error(f"By peeking {looks} times, your risk of a false win increased by {(fp_rate/alpha if alpha>0 else 0):.1f}x!")
+        st.metric("False Positive Rate", f"{fp_rate:.1%}")
+        st.metric("Expected (α)", f"{alpha:.1%}")
+        st.info("The red line shows a single 'experiment' over time. Notice how easily it can cross the threshold by pure noise.")
