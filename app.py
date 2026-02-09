@@ -1,70 +1,73 @@
 import streamlit as st
 import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
+from scipy.stats import beta
 
-st.set_page_config(page_title="Raptive Revenue Forecaster", layout="wide")
+st.set_page_config(page_title="Raptive A/B Decision Engine", layout="wide")
 
-st.title("🎲 Raptive Monte Carlo: Ad Revenue Forecaster")
+st.title("🧪 Bayesian A/B Test Simulator")
 st.markdown("""
-### From Chaos to Certainty
-In advertising, daily revenue is volatile. This tool uses **Monte Carlo Simulation** to model 1,000s of possible monthly outcomes for a creator.
-It demonstrates the **Central Limit Theorem**: how the sum of many independent daily variables (Traffic & CPM) results in a stable Normal Distribution of total monthly revenue.
+### Optimization Intelligence
+In ad-tech, we don't just want to know if a change worked; we want to know the **probability** that it's better. 
+This dashboard uses **Bayesian Inference** to compare two ad layouts (Control vs. Variant).
 """)
 
-# Sidebar for Business Logic
-st.sidebar.header("📈 Forecast Inputs")
-avg_traffic = st.sidebar.number_input("Avg. Daily Pageviews", value=50000, step=1000)
-traffic_volatility = st.sidebar.slider("Daily Traffic Volatility (%)", 0, 50, 15)
+# Sidebar: Simulation Controls
+st.sidebar.header("🕹️ Live Experiment Controls")
+st.sidebar.subheader("Baseline (Control)")
+clicks_a = st.sidebar.number_input("Control: Clicks/Conversions", value=100, step=10)
+views_a = st.sidebar.number_input("Control: Total Impressions", value=1000, step=100)
 
-avg_cpm = st.sidebar.slider("Target CPM ($)", 5.0, 50.0, 22.0)
-cpm_volatility = st.sidebar.slider("CPM Daily Volatility ($)", 0.5, 10.0, 3.0)
+st.sidebar.subheader("New Layout (Variant)")
+clicks_b = st.sidebar.number_input("Variant: Clicks/Conversions", value=125, step=10)
+views_b = st.sidebar.number_input("Variant: Total Impressions", value=1050, step=100)
 
-num_simulations = st.sidebar.selectbox("Precision (Simulations)", [500, 1000, 2000], index=1)
+# Statistical Calculation
+# Beta distribution is used as a conjugate prior for Bernoulli trials (clicks)
+# Parameters: alpha = successes + 1, beta = failures + 1
+x = np.linspace(0, 0.25, 500)
+y_a = beta.pdf(x, clicks_a + 1, views_a - clicks_a + 1)
+y_b = beta.pdf(x, clicks_b + 1, views_b - clicks_b + 1)
 
-# The Math: Monte Carlo Logic
-@st.cache_data
-def run_simulation(traffic, t_vol, cpm, cpm_vol, sims):
-    results = []
-    days = 30
-    for _ in range(sims):
-        # Simulate 30 individual days of noise
-        daily_traffic = np.random.normal(traffic, traffic * (t_vol/100), days)
-        daily_cpm = np.random.normal(cpm, cpm_vol, days)
-        # Calculate 30-day sum
-        monthly_rev = np.sum((daily_traffic / 1000) * daily_cpm)
-        results.append(monthly_rev)
-    return np.array(results)
+# Probability B > A via Monte Carlo simulation
+sim_a = np.random.beta(clicks_a + 1, views_a - clicks_a + 1, 10000)
+sim_b = np.random.beta(clicks_b + 1, views_b - clicks_b + 1, 10000)
+prob_b_better = (sim_b > sim_a).mean()
 
-rev_data = run_simulation(avg_traffic, traffic_volatility, avg_cpm, cpm_volatility, num_simulations)
-
-# Visualizing the "Wow"
+# Layout
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    st.subheader("The Revenue Probability Cloud")
+    st.subheader("Statistical Confidence Curves")
     fig, ax = plt.subplots(figsize=(10, 5))
-    sns.histplot(rev_data, kde=True, color="#1f77b4", ax=ax, bins=30)
-    plt.axvline(np.mean(rev_data), color='red', linestyle='--', label=f'Expected: ${np.mean(rev_data):,.0f}')
-    plt.title("Distribution of 1,000+ Potential Monthly Outcomes")
-    plt.xlabel("Total Monthly Revenue ($)")
+    ax.plot(x, y_a, label=f"Control (CTR: {clicks_a/views_a:.2%})", lw=3, color='#95a5a6')
+    ax.fill_between(x, 0, y_a, alpha=0.2, color='#95a5a6')
+    ax.plot(x, y_b, label=f"Variant (CTR: {clicks_b/views_b:.2%})", lw=3, color='#2ecc71')
+    ax.fill_between(x, 0, y_b, alpha=0.2, color='#2ecc71')
+    
+    plt.title("Comparison of Performance Distributions")
+    plt.xlabel("Click-Through Rate (CTR)")
+    plt.ylabel("Density (Confidence)")
     plt.legend()
     st.pyplot(fig)
 
 with col2:
-    st.subheader("Risk Analysis")
-    p5 = np.percentile(rev_data, 5)
-    p50 = np.percentile(rev_data, 50)
-    p95 = np.percentile(rev_data, 95)
+    st.subheader("The Verdict")
+    st.metric("Prob. Variant beats Control", f"{prob_b_better:.1%}")
     
-    st.metric("Conservative (5% chance)", f"${p5:,.0f}")
-    st.metric("Expected (Median)", f"${p50:,.0f}")
-    st.metric("Optimistic (95% chance)", f"${p95:,.0f}")
-    
-    st.write(f"""
-    **Business Insight:** There is a **90% statistical probability** that this creator will earn between 
-    **${p5:,.0f}** and **${p95:,.0f}** next month.
-    """)
+    lift = ((clicks_b/views_b) / (clicks_a/views_a)) - 1
+    st.metric("Estimated Revenue Lift", f"{lift:+.1%}")
 
-st.info("💡 **Why this matters for Raptive:** We help creators turn unpredictable traffic into predictable income. This simulation shows that while any single day is a gamble, the aggregate month follows a stable statistical law, allowing for confident financial planning.")
+    if prob_b_better > 0.95:
+        st.success("✅ Statistically Significant: Deploy Variant!")
+    elif prob_b_better < 0.05:
+        st.error("❌ Statistically Significant: Stick with Control.")
+    else:
+        st.warning("⏳ Inconclusive: Keep collecting data.")
+
+st.info("""
+**Why this is "Wow":** Traditional p-values are hard to explain to creators. 
+Bayesian probability (e.g., 'There is a 98% chance this ad makes more money') 
+is intuitive, actionable, and reflects how top-tier ad-tech companies make decisions.
+""")
