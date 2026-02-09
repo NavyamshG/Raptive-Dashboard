@@ -4,70 +4,86 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from scipy.stats import beta
 
-st.set_page_config(page_title="Raptive A/B Decision Engine", layout="wide")
+st.set_page_config(page_title="Raptive Advanced Decision Engine", layout="wide")
 
-st.title("🧪 Bayesian A/B Test Simulator")
-st.markdown("""
-### Optimization Intelligence
-In ad-tech, we don't just want to know if a change worked; we want to know the **probability** that it's better. 
-This dashboard uses **Bayesian Inference** to compare two ad layouts (Control vs. Variant).
-""")
+st.title("🧪 Advanced Bayesian A/B Decision Engine")
 
-# Sidebar: Simulation Controls
-st.sidebar.header("🕹️ Live Experiment Controls")
-st.sidebar.subheader("Baseline (Control)")
-clicks_a = st.sidebar.number_input("Control: Clicks/Conversions", value=100, step=10)
-views_a = st.sidebar.number_input("Control: Total Impressions", value=1000, step=100)
+# --- SIDEBAR CONTROLS ---
+st.sidebar.header("🕹️ Experiment Data")
+with st.sidebar.expander("Control Settings", expanded=True):
+    clicks_a = st.number_input("Control Conversions", value=100)
+    views_a = st.number_input("Control Impressions", value=1000)
+with st.sidebar.expander("Variant Settings", expanded=True):
+    clicks_b = st.number_input("Variant Conversions", value=125)
+    views_b = st.number_input("Variant Impressions", value=1050)
 
-st.sidebar.subheader("New Layout (Variant)")
-clicks_b = st.sidebar.number_input("Variant: Clicks/Conversions", value=125, step=10)
-views_b = st.sidebar.number_input("Variant: Total Impressions", value=1050, step=100)
-
-# Statistical Calculation
-# Beta distribution is used as a conjugate prior for Bernoulli trials (clicks)
-# Parameters: alpha = successes + 1, beta = failures + 1
+# --- STATISTICAL CALCULATIONS ---
+# Generate distributions for plotting
 x = np.linspace(0, 0.25, 500)
 y_a = beta.pdf(x, clicks_a + 1, views_a - clicks_a + 1)
 y_b = beta.pdf(x, clicks_b + 1, views_b - clicks_b + 1)
 
-# Probability B > A via Monte Carlo simulation
+# Monte Carlo Simulation for Probability & Relative Lift
 sim_a = np.random.beta(clicks_a + 1, views_a - clicks_a + 1, 10000)
 sim_b = np.random.beta(clicks_b + 1, views_b - clicks_b + 1, 10000)
 prob_b_better = (sim_b > sim_a).mean()
+relative_lift = (sim_b - sim_a) / sim_a
 
-# Layout
-col1, col2 = st.columns([2, 1])
+# --- MAIN DASHBOARD ---
+m1, m2, m3 = st.columns(3)
+m1.metric("Prob. Variant is Better", f"{prob_b_better:.1%}")
+m2.metric("Mean Relative Lift", f"{(sim_b.mean()/sim_a.mean())-1:+.2%}")
+m3.metric("Decision Status", "Deploy" if prob_b_better > 0.95 else "Collect Data")
 
-with col1:
-    st.subheader("Statistical Confidence Curves")
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(x, y_a, label=f"Control (CTR: {clicks_a/views_a:.2%})", lw=3, color='#95a5a6')
-    ax.fill_between(x, 0, y_a, alpha=0.2, color='#95a5a6')
-    ax.plot(x, y_b, label=f"Variant (CTR: {clicks_b/views_b:.2%})", lw=3, color='#2ecc71')
-    ax.fill_between(x, 0, y_b, alpha=0.2, color='#2ecc71')
+st.divider()
+
+# --- CHART SECTION ---
+tab1, tab2 = st.tabs(["📊 Confidence Distributions", "📈 Risk & Lift Analysis"])
+
+with tab1:
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        st.subheader("Performance Density")
+        fig, ax = plt.subplots(figsize=(10, 5))
+        ax.plot(x, y_a, label="Control", color='#95a5a6', lw=3)
+        ax.fill_between(x, 0, y_a, alpha=0.2, color='#95a5a6')
+        ax.plot(x, y_b, label="Variant", color='#2ecc71', lw=3)
+        ax.fill_between(x, 0, y_b, alpha=0.2, color='#2ecc71')
+        ax.set_xlabel("Conversion Rate (CTR)")
+        ax.legend()
+        st.pyplot(fig)
     
-    plt.title("Comparison of Performance Distributions")
-    plt.xlabel("Click-Through Rate (CTR)")
-    plt.ylabel("Density (Confidence)")
-    plt.legend()
-    st.pyplot(fig)
+    with col2:
+        st.subheader("Range of Uncertainty")
+        # Boxplot to show the spread of the CTR
+        fig_box, ax_box = plt.subplots(figsize=(5, 7.3))
+        sns.boxplot(data=[sim_a, sim_b], palette=['#95a5a6', '#2ecc71'], ax=ax_box)
+        ax_box.set_xticklabels(['Control', 'Variant'])
+        ax_box.set_title("CTR Confidence Intervals")
+        st.pyplot(fig_box)
 
-with col2:
-    st.subheader("The Verdict")
-    st.metric("Prob. Variant beats Control", f"{prob_b_better:.1%}")
+
+
+with tab2:
+    c1, c2 = st.columns(2)
+    with c1:
+        st.subheader("Distribution of Relative Lift")
+        # This shows how MUCH better B is likely to be
+        fig_lift, ax_lift = plt.subplots()
+        sns.histplot(relative_lift, kde=True, color="#2ecc71", ax=ax_lift)
+        ax_lift.axvline(0, color='red', linestyle='--')
+        ax_lift.set_title("How much better is the Variant?")
+        ax_lift.set_xlabel("Percent Lift over Control")
+        st.pyplot(fig_lift)
     
-    lift = ((clicks_b/views_b) / (clicks_a/views_a)) - 1
-    st.metric("Estimated Revenue Lift", f"{lift:+.1%}")
+    with c2:
+        st.subheader("Business Impact Summary")
+        st.write(f"""
+        - There is a **{prob_b_better:.1%}** chance that the Variant outperforms the Control.
+        - The most likely lift in revenue is **{np.median(relative_lift):.1%}**.
+        - In the worst-case scenario (5th percentile), you might see a lift of **{np.percentile(relative_lift, 5):.1%}**.
+        """)
+        if np.percentile(relative_lift, 5) > 0:
+            st.success("Even the 'worst case' for the Variant is better than the Control. This is a very safe bet.")
 
-    if prob_b_better > 0.95:
-        st.success("✅ Statistically Significant: Deploy Variant!")
-    elif prob_b_better < 0.05:
-        st.error("❌ Statistically Significant: Stick with Control.")
-    else:
-        st.warning("⏳ Inconclusive: Keep collecting data.")
-
-st.info("""
-**Why this is "Wow":** Traditional p-values are hard to explain to creators. 
-Bayesian probability (e.g., 'There is a 98% chance this ad makes more money') 
-is intuitive, actionable, and reflects how top-tier ad-tech companies make decisions.
-""")
+st.info("**Strategy:** Use the 'Lift Distribution' to set revenue expectations for stakeholders.")
