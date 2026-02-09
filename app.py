@@ -17,7 +17,7 @@ st.markdown("""
     
 
     .main-header { 
-        font-size: 6rem;           /* Dramatically larger scale */
+        font-size: 20.5rem;           /* Dramatically larger scale */
         font-weight: 900;           /* Maximum thickness */
         color: #1E1E1E;             /* Deep charcoal for punch */
         margin-bottom: -15px;       /* Pulls sub-header closer */
