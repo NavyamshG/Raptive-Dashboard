@@ -1,50 +1,51 @@
+# 📊 CTR Inference Lab
 
-#  CTR Inference Lab
+A high-impact **Streamlit** laboratory designed for evaluating the robustness of A/B test results. This tool visualizes how different distributional assumptions and statistical lenses (Z-test, T-test, and Fisher’s Exact) impact conversion rate optimization (CRO) decisions.
 
-A high-impact **Streamlit** laboratory designed for evaluating the robustness of A/B test results. This tool visualizes how different distributional assumptions and statistical "lenses" (Z-test, T-test, and Fisher’s Exact) impact the validity of conversion rate optimization (CRO) decisions.
+---
 
 ## 🚀 Key Features
 
-* **Multi-Estimator Engine**: Simultaneously compares p-values from:
-    * **Z-Test**: The standard normal approximation for large samples.
-    * **Welch’s T-Test**: A robust method for unequal variances and sample sizes.
-    * **Fisher’s Exact Test**: The "gold standard" for small samples, calculating exact combinatorial probabilities.
-* **Advanced Confidence Intervals**: Compares the traditional **Wald (Binomial) Interval** against the **Newcombe-Wilson Interval** to demonstrate how bound estimations shift under different frameworks.
-* **The "Peeking" Simulator**: A live Monte Carlo simulation showing how checking your results before a test concludes exponentially inflates your False Positive Rate (Type I Error).
-* **High-Fidelity Visuals**: Dynamic Plotly charts for distribution overlaps, p-value comparison bars, and "P-value journey" tracking.
+- **Multi-Estimator Engine**
+  - Z-Test (normal approximation)
+  - Welch’s T-Test
+  - Fisher’s Exact Test
+
+- **Advanced Confidence Intervals**
+  - Wald Interval
+  - Newcombe-Wilson Interval
+
+- **Peeking Simulator**
+  Demonstrates false positive inflation from repeated interim checks.
+
+- **Interactive Visualizations**
+  Built using Plotly for intuitive inference comparison.
+
+---
 
 ## 🧪 The "Magic" Scenario
-This lab is designed to reveal "Conflicts of Significance." 
-**Try these inputs:**
-- **Control**: 20 Clicks / 200 Views
-- **Variant**: 35 Clicks / 200 Views
-- **Significance ($\alpha$)**: 0.04
 
-You will observe a scenario where the Z and T tests declare a **Winner**, while Fisher’s Exact remains **Non-Significant**. This demonstrates the danger of relying on normal approximations in marginal volume scenarios.
+Try:
 
+- **Control:** 20 / 200  
+- **Variant:** 35 / 200  
+- **α:** 0.04  
 
+Z and T may show significance while Fisher does not.
 
-## 🛠️ Installation & Usage
+This highlights approximation risk in moderate sample experiments.
 
-### 1. Requirements
-Ensure you have Python 3.8+ installed. You will need the following libraries:
+---
 
+## 🛠 Installation & Usage
+
+### 1 Install Dependencies
+
+Make sure Python 3.8+ is installed.
 
 ```bash
-pip install streamlit numpy scipy plotly
-- Dependencies (listed in `requirements.txt`):
-  - streamlit
-  - pandas
-  - numpy
-  - matplotlib
-  - seaborn
-  - scipy
-  - plotly
-```bash
+pip install streamlit pandas numpy matplotlib seaborn scipy plotly
 
-### 2. Run the app
-```bash
+### 2. Install Dependencies
+
 streamlit run app.py
-```bash
-
-
