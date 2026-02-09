@@ -15,22 +15,6 @@ st.markdown("""
     <style>
     [data-testid="stMetricValue"] { font-size: 28px; }
     
-
-# Replace your old st.markdown header with this big Title
-st.title("📊 CTR Inference Lab")
-
-# If you want the gradient effect specifically, use this instead:
-st.write(f"""
-    <h1 style="font-size: 5rem; font-weight: 900; margin-bottom: 0px;">
-        <span style="
-            background: linear-gradient(to right, #1E1E1E, #ff4b4b);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        ">📊 CTR Inference Lab</span>
-    </h1>
-""", unsafe_allow_html=True)
-    
-    
     .sub-header { 
         font-size: 1.4rem; 
         color: #5E5E5E; 
@@ -55,8 +39,17 @@ st.write(f"""
     </style>
     """, unsafe_allow_html=True)
 
-# Headers
-st.markdown('<p class="main-header">📊 CTR Inference Lab</p>', unsafe_allow_html=True)
+# Main Title with Gradient
+st.write(f"""
+    <h1 style="font-size: 5rem; font-weight: 900; margin-bottom: 0px;">
+        <span style="
+            background: linear-gradient(to right, #1E1E1E, #ff4b4b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        ">📊 CTR Inference Lab</span>
+    </h1>
+""", unsafe_allow_html=True)
+
 st.markdown('<p class="sub-header">Evaluating Estimator Robustness: How Distributional Assumptions Impact Significance in Discrete A/B Testing</p>', unsafe_allow_html=True)
 
 # Dashboard Summary & Explanation
@@ -71,7 +64,6 @@ st.markdown("""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
 
 # -------------------------
 # Helpers
@@ -226,20 +218,20 @@ with col_results:
     st.plotly_chart(fig_p, use_container_width=True)
 
 # Magic Scenario Callout placed under the graphs
-    st.markdown("""
-    <div style="background-color: #e8f4f8; padding: 15px; border-radius: 10px; border: 1px solid #add8e6; margin-top: 20px;">
-        <span style="font-size: 1.1rem;">✨ <strong>To see a magic:</strong> 
-        Set Control clicks: <strong>20</strong>, Control views: <strong>200</strong>, 
-        Variant clicks: <strong>35</strong>, Variant views: <strong>200</strong>, 
-        and Significance level: <strong>0.04</strong></span>
-    </div>
-    """, unsafe_allow_html=True)
+st.markdown("""
+<div style="background-color: #e8f4f8; padding: 15px; border-radius: 10px; border: 1px solid #add8e6; margin-top: 20px;">
+    <span style="font-size: 1.1rem;">✨ <strong>To see a magic:</strong> 
+    Set Control clicks: <strong>20</strong>, Control views: <strong>200</strong>, 
+    Variant clicks: <strong>35</strong>, Variant views: <strong>200</strong>, 
+    and Significance level: <strong>0.04</strong></span>
+</div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
 # 2) Confidence Intervals
 st.subheader("2) Delta Confidence Intervals")
-st.markdown(f"**Wald Interval (Binomial):** `{pct(wald_lo)}` to `{pct(wald_hi)}`  \n"
+st.markdown(f"**Wald Interval (Binomial):** `{pct(wald_lo)}` to `{pct(wald_hi)}` \n"
             f"**Newcombe Interval (Wilson):** `{pct(newc_lo)}` to `{pct(newc_hi)}`")
 
 fig_ci = go.Figure()
@@ -251,7 +243,7 @@ st.plotly_chart(fig_ci, use_container_width=True)
 
 st.divider()
 
-# 3) Peeking Danger Demo (REINSTATED)
+# 3) Peeking Danger Demo
 if show_peeking:
     st.subheader("3) The Danger of Peeking (False Positive Risk)")
     rng = np.random.default_rng(int(seed))
