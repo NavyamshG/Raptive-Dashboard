@@ -5,7 +5,7 @@ import scipy.stats as stats
 import math
 
 # ============================================================
-# CTR Inference Lab: Manual Entry Edition
+# CTR Inference Lab (The "Scenario Selector" Edition)
 # ============================================================
 
 st.set_page_config(page_title="CTR Inference Lab", layout="wide")
@@ -90,12 +90,26 @@ def pct(x):
 # Sidebar
 # -------------------------
 with st.sidebar:
+    st.header("🕹️ Scenario Selector")
+    scenario = st.selectbox("Choose a scenario or Manual Entry:", 
+                            ["Manual Entry", "The Marginal Win", "Small Sample Chaos", "Clear Winner"])
+    
+    # Presets: (x1, n1, x2, n2)
+    presets = {
+        "Manual Entry": (20, 200, 35, 200),
+        "The Marginal Win": (100, 1000, 125, 1000),
+        "Small Sample Chaos": (2, 20, 5, 20),
+        "Clear Winner": (50, 1000, 120, 1000)
+    }
+    def_x1, def_n1, def_x2, def_n2 = presets[scenario]
+
+    st.divider()
     st.header("🎛️ Experiment Inputs")
     colA, colB = st.columns(2)
-    x1 = colA.number_input("Control Clicks", value=20, min_value=0)
-    n1 = colA.number_input("Control Views", value=200, min_value=1)
-    x2 = colB.number_input("Variant Clicks", value=35, min_value=0)
-    n2 = colB.number_input("Variant Views", value=200, min_value=1)
+    x1 = colA.number_input("Control Clicks", value=def_x1, min_value=0)
+    n1 = colA.number_input("Control Views", value=def_n1, min_value=1)
+    x2 = colB.number_input("Variant Clicks", value=def_x2, min_value=0)
+    n2 = colB.number_input("Variant Views", value=def_n2, min_value=1)
     
     alpha = st.slider("Significance α", 0.01, 0.20, 0.05)
 
@@ -116,21 +130,18 @@ p1, p2 = x1/n1, x2/n2
 diff = p2 - p1
 rel = diff / p1 if p1 > 0 else np.nan
 
-# Run Tests
+# Tests
 z_stat, z_p = two_prop_ztest(x1, n1, x2, n2)
 t_stat, t_df, t_p = welch_ttest_bernoulli(x1, n1, x2, n2)
 odds, f_p = fishers_exact(x1, n1, x2, n2)
 
-# Logic for Won/Lost Verdict
-tests = {
-    "z-test": z_p,
-    "t-test": t_p,
-    "Fisher": f_p
-}
+# Verdict Logic
+tests = {"z-test": z_p, "t-test": t_p, "Fisher": f_p}
 wins = [name for name, p in tests.items() if np.isfinite(p) and p <= alpha]
 losses = [name for name, p in tests.items() if np.isfinite(p) and p > alpha]
+is_significant = len(wins) > 0
 
-# Confidence Intervals
+# CIs
 wald_d, wald_lo, wald_hi = wald_ci_diff(x1, n1, x2, n2, alpha=alpha)
 newc_d, newc_lo, newc_hi = newcombe_ci_diff(x1, n1, x2, n2, alpha=alpha)
 
@@ -140,8 +151,6 @@ newc_d, newc_lo, newc_hi = newcombe_ci_diff(x1, n1, x2, n2, alpha=alpha)
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("Control CTR", pct(p1))
 c2.metric("Variant CTR", pct(p2))
-
-# Color coding for the lift (based on z-test significance)
 lift_color = "normal" if (z_p <= alpha) else "off"
 c3.metric("Δ CTR (Abs)", pct(diff), f"Rel: {pct(rel)}", delta_color=lift_color)
 c4.metric("Confidence (z-test)", pct(1 - z_p) if np.isfinite(z_p) else "NA")
@@ -155,14 +164,11 @@ st.subheader("1) The 'Overlap' & Test Comparison")
 col_plot, col_results = st.columns([1.5, 1])
 
 with col_plot:
-    # Distribution Curves (Intuitive visualization of uncertainty)
-    
+    # Distribution Curves
     x_axis = np.linspace(max(0, min(p1, p2) - 0.15), min(1, max(p1, p2) + 0.15), 500)
     se1 = math.sqrt(p1*(1-p1)/n1) if p1 > 0 else 0.01
     se2 = math.sqrt(p2*(1-p2)/n2) if p2 > 0 else 0.01
-    
-    y1 = stats.norm.pdf(x_axis, p1, se1)
-    y2 = stats.norm.pdf(x_axis, p2, se2)
+    y1, y2 = stats.norm.pdf(x_axis, p1, se1), stats.norm.pdf(x_axis, p2, se2)
     
     fig_dist = go.Figure()
     fig_dist.add_trace(go.Scatter(x=x_axis, y=y1, fill='tozeroy', name='Control', line_color='#636EFA'))
@@ -171,17 +177,13 @@ with col_plot:
     st.plotly_chart(fig_dist, use_container_width=True)
 
 with col_results:
-    # Verdict text
     st.markdown("**Test Verdicts**")
     if wins:
         st.success(f"**Won according to:** {', '.join(wins)}")
     if losses:
-        st.error(f"**Lost (Inconclusive) according to:** {', '.join(losses)}")
+        st.error(f"**Lost according to:** {', '.join(losses)}")
     
-    if not wins:
-        st.warning("No tests reached significance.")
-
-    # P-Value Bar Chart Comparison
+    # P-value Comparison Chart
     fig_methods = go.Figure()
     fig_methods.add_trace(go.Bar(
         x=["z-test", "t-test", "Fisher"],
@@ -193,7 +195,6 @@ with col_results:
     fig_methods.add_hline(y=alpha, line_dash="dash", line_color="black")
     fig_methods.update_layout(yaxis_title="p-value", height=250, margin=dict(l=0, r=0, t=20, b=0), showlegend=False)
     st.plotly_chart(fig_methods, use_container_width=True)
-    st.caption(f"Bars below the α={alpha} line are statistically significant.")
 
 st.divider()
 
@@ -201,53 +202,33 @@ st.divider()
 # 2) CI Comparison
 # -------------------------
 st.subheader("2) Confidence Intervals for Δ CTR")
-
 fig_ci = go.Figure()
-fig_ci.add_trace(go.Scatter(
-    x=[diff], y=["Wald"], mode="markers", name="Wald",
-    error_x=dict(type="data", symmetric=False, array=[wald_hi - diff], arrayminus=[diff - wald_lo], visible=True),
-    marker=dict(size=12, color="#AB63FA")
-))
-fig_ci.add_trace(go.Scatter(
-    x=[diff], y=["Newcombe/Wilson"], mode="markers", name="Newcombe",
-    error_x=dict(type="data", symmetric=False, array=[newc_hi - diff], arrayminus=[diff - newc_lo], visible=True),
-    marker=dict(size=12, color="#EF553B")
-))
+fig_ci.add_trace(go.Scatter(x=[diff], y=["Wald"], mode="markers", error_x=dict(type="data", array=[wald_hi - diff], arrayminus=[diff - wald_lo], visible=True), marker=dict(size=12, color="#AB63FA")))
+fig_ci.add_trace(go.Scatter(x=[diff], y=["Newcombe"], mode="markers", error_x=dict(type="data", array=[newc_hi - diff], arrayminus=[diff - newc_lo], visible=True), marker=dict(size=12, color="#EF553B")))
 fig_ci.add_vline(x=0, line_dash="dash", line_color="gray")
-fig_ci.update_layout(height=280, xaxis_title="Estimated Difference (B - A)", showlegend=True)
+fig_ci.update_layout(height=280, xaxis_title="Estimated Difference (B - A)")
 st.plotly_chart(fig_ci, use_container_width=True)
-
-ca, cb = st.columns(2)
-ca.info(f"**Wald CI:** [{pct(wald_lo)}, {pct(wald_hi)}]")
-cb.info(f"**Newcombe CI:** [{pct(newc_lo)}, {pct(newc_hi)}]")
-
-st.divider()
 
 # -------------------------
 # 3) Peeking Demo
 # -------------------------
 if show_peeking:
     st.subheader("3) The Danger of Peeking")
-    
     rng = np.random.default_rng(int(seed))
     n_total = n1 + n2
     sample_points = np.linspace(10, n_total, looks).astype(int)
     
-    # Simulation Journey (Single example to plot)
     example_p_journey = []
-    a_hits = rng.binomial(1, p1, size=n_total)
-    b_hits = rng.binomial(1, p1, size=n_total)
+    a_hits, b_hits = rng.binomial(1, p1, size=n_total), rng.binomial(1, p1, size=n_total)
     
     for n_pt in sample_points:
         xa, xb = a_hits[:n_pt].sum(), b_hits[:n_pt].sum()
         _, p_val = two_prop_ztest(xa, n_pt, xb, n_pt)
         example_p_journey.append(p_val)
 
-    # Multi-simulation False Positive Rate
     any_fp = 0
     for _ in range(int(sims)):
-        a = rng.binomial(1, p1, size=n_total)
-        b = rng.binomial(1, p1, size=n_total)
+        a, b = rng.binomial(1, p1, size=n_total), rng.binomial(1, p1, size=n_total)
         for n_pt in sample_points:
             xa, xb = a[:n_pt].sum(), b[:n_pt].sum()
             _, p = two_prop_ztest(xa, n_pt, xb, n_pt)
@@ -258,13 +239,13 @@ if show_peeking:
     
     col_peek_chart, col_peek_stats = st.columns([2, 1])
     with col_peek_chart:
-        fig_journey = go.Figure()
-        fig_journey.add_trace(go.Scatter(x=sample_points, y=example_p_journey, mode='lines+markers', name='P-value Journey', line_color='#FF4B4B'))
-        fig_journey.add_hline(y=alpha, line_dash="dash", line_color="black", annotation_text="Threshold")
-        fig_journey.update_layout(height=350, xaxis_title="Cumulative Sample Size", yaxis_title="P-Value", yaxis_range=[0, 1])
+        fig_journey = go.Figure(go.Scatter(x=sample_points, y=example_p_journey, mode='lines+markers', line_color='#FF4B4B'))
+        fig_journey.add_hline(y=alpha, line_dash="dash", annotation_text="Threshold")
+        fig_journey.update_layout(height=350, yaxis_range=[0, 1])
         st.plotly_chart(fig_journey, use_container_width=True)
-
     with col_peek_stats:
         st.metric("False Positive Rate", f"{fp_rate:.1%}")
-        st.metric("Expected (α)", f"{alpha:.1%}")
-        st.info("The red line shows a single 'experiment' over time. Notice how easily random noise can cross the threshold.")
+        st.error(f"Peeking {looks} times increased your risk of a false win by {(fp_rate/alpha if alpha>0 else 0):.1f}x!")
+
+if is_significant:
+    st.balloons()
