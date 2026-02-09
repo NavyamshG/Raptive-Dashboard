@@ -44,7 +44,7 @@ This highlights approximation risk in moderate sample experiments.
 Make sure Python 3.8+ is installed.
 
 ```bash
-pip install streamlit pandas numpy matplotlib seaborn scipy plotly
+pip install streamlit pandas numpy matplotlib seaborn scipy.stats plotly.graph_objects math
 
 ```
 
