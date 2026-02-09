@@ -57,6 +57,15 @@ pip install streamlit pandas numpy matplotlib seaborn scipy.stats plotly.graph_o
    streamlit run Home.py 
    
    ```
+
+4. **Open Streamlit.io:**
+   
+   ```bash
+   Login using your GitHub
+   Create an app
+   Deploy
+   ```
+   
 ---
 
 ## Preview
