@@ -30,3 +30,7 @@ You will observe a scenario where the Z and T tests declare a **Winner**, while 
 Ensure you have Python 3.8+ installed. You will need the following libraries:
 ```bash
 pip install streamlit numpy scipy plotly
+
+```bash
+streamlit run app.py
+
