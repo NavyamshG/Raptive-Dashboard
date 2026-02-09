@@ -76,7 +76,7 @@ with tab2:
         ax_lift.set_xlabel("Percent Lift over Control")
         st.pyplot(fig_lift)
     
-  with c2:
+    with c2:
         st.subheader("🚀 Leadership Decision Dashboard")
         
         # Calculate Key Leadership Metrics
