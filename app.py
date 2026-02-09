@@ -31,7 +31,7 @@ relative_lift = (sim_b - sim_a) / sim_a
 
 # --- MAIN DASHBOARD ---
 m1, m2, m3 = st.columns(3)
-m1.metric("Prob. Variant is Better", f"{prob_b_better:.1%}")
+m1.metric("Probability Variant is Better", f"{prob_b_better:.1%}")
 m2.metric("Mean Relative Lift", f"{(sim_b.mean()/sim_a.mean())-1:+.2%}")
 m3.metric("Decision Status", "Deploy" if prob_b_better > 0.95 else "Collect Data")
 
