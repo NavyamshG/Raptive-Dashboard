@@ -22,7 +22,7 @@ st.markdown("""
         color: #1E1E1E;             /* Deep charcoal for punch */
         margin-bottom: -15px;       /* Pulls sub-header closer */
         line-height: 1;             /* Prevents excessive vertical spacing */
-        letter-spacing: -3px;       /* Gives it a tight, professional look */
+        letter-spacing: -1px;       /* Gives it a tight, professional look */
         font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
     }
     
