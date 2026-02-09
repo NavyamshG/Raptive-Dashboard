@@ -64,6 +64,16 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
+# Magic Scenario Callout
+st.markdown("""
+<div style="background-color: #e8f4f8; padding: 15px; border-radius: 10px; border: 1px solid #add8e6; margin-bottom: 25px;">
+    <span style="font-size: 1.1rem;">✨ <strong>To see a magic:</strong> 
+    Set Control clicks: <strong>20</strong>, Control views: <strong>200</strong>, 
+    Variant clicks: <strong>35</strong>, Variant views: <strong>200</strong>, 
+    and Significance level: <strong>0.04</strong></span>
+</div>
+""", unsafe_allow_html=True)
+
 # -------------------------
 # Helpers
 # -------------------------
