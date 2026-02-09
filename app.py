@@ -16,15 +16,19 @@ st.markdown("""
     [data-testid="stMetricValue"] { font-size: 28px; }
     
 
-    .main-header { 
-        font-size: 20.5rem;           /* Dramatically larger scale */
-        font-weight: 900;           /* Maximum thickness */
-        color: #1E1E1E;             /* Deep charcoal for punch */
-        margin-bottom: -15px;       /* Pulls sub-header closer */
-        line-height: 1;             /* Prevents excessive vertical spacing */
-        letter-spacing: -1px;       /* Gives it a tight, professional look */
-        font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    }
+# Replace your old st.markdown header with this big Title
+st.title("📊 CTR Inference Lab")
+
+# If you want the gradient effect specifically, use this instead:
+st.write(f"""
+    <h1 style="font-size: 5rem; font-weight: 900; margin-bottom: 0px;">
+        <span style="
+            background: linear-gradient(to right, #1E1E1E, #ff4b4b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        ">📊 CTR Inference Lab</span>
+    </h1>
+""", unsafe_allow_html=True)
     
     
     .sub-header { 
