@@ -65,43 +65,45 @@ with tab1:
 
 
 with tab2:
-    c1, c2 = st.columns(2)
-    with c1:
-        st.subheader("Distribution of Relative Lift")
-        # This shows how MUCH better B is likely to be
-        fig_lift, ax_lift = plt.subplots()
-        sns.histplot(relative_lift, kde=True, color="#2ecc71", ax=ax_lift)
-        ax_lift.axvline(0, color='red', linestyle='--')
-        ax_lift.set_title("How much better is the Variant?")
-        ax_lift.set_xlabel("Percent Lift over Control")
-        st.pyplot(fig_lift)
+    c1, c2 = st.columns([1.5, 1])
     
-    with c2:
-        st.subheader("🚀 Leadership Decision Dashboard")
+    with c1:
+        st.subheader("📈 Decision Confidence")
+        # Probability Gauge for immediate visual "Go/No-Go"
+        import plotly.graph_objects as go
         
-        # Calculate Key Leadership Metrics
-        prob_win = prob_b_better
-        avg_uplift = np.median(relative_lift)
+        fig_gauge = go.Figure(go.Indicator(
+            mode = "gauge+number",
+            value = prob_b_better * 100,
+            number = {'suffix': "%"},
+            gauge = {
+                'axis': {'range': [0, 100]},
+                'bar': {'color': "black"},
+                'steps': [
+                    {'range': [0, 70], 'color': "#ff4b4b"},   # Red: High Risk
+                    {'range': [70, 95], 'color': "#ffa500"},  # Orange: Warning
+                    {'range': [95, 100], 'color': "#00cc96"}  # Green: Safe
+                ],
+                'threshold': {'line': {'color': "white", 'width': 4}, 'value': 95}
+            }
+        ))
+        fig_gauge.update_layout(height=300, margin=dict(l=20, r=20, t=50, b=20))
+        st.plotly_chart(fig_gauge, use_container_width=True)
+
+    with c2:
+        st.subheader("🚀 Business Impact Summary")
+        
+        # Big Bold Metrics
+        st.metric("Most Likely Lift", f"{np.median(relative_lift):+.1%}")
+        
+        # Logic-driven status boxes
         worst_case = np.percentile(relative_lift, 5)
         
-        # 1. Big Metric Cards for Scannability
-        kpi1, kpi2 = st.columns(2)
-        kpi1.metric("Confidence in Variant", f"{prob_win:.1%}", 
-                    help="Probability that the Variant is genuinely better.")
-        kpi2.metric("Expected Lift", f"{avg_uplift:+.1%}", 
-                    help="The most likely performance increase.")
-
-        st.divider()
-
-        # 2. Status-Based Alerts
-        if worst_case < 0:
-            st.warning(f"⚠️ **Caution:** Potential risk detected. Worst-case scenario is a **{abs(worst_case):.1%}** drop. Consider more data.")
+        if prob_b_better >= 0.95:
+            st.success(f"✅ **Safe to Deploy**: Confidence is high ({prob_b_better:.1%}). Even the worst-case scenario is likely manageable.")
+        elif prob_b_better >= 0.80:
+            st.warning(f"⚠️ **Directional Win**: High probability of success, but hasn't hit 95% certainty. Worst-case: {worst_case:.1%} drop.")
         else:
-            st.success(f"✅ **High Confidence:** Safe to deploy. Even the worst-case is a **{worst_case:.1%}** gain.")
+            st.error(f"🛑 **Inconclusive**: Keep the test running. There is too much overlap in the 'Range of Uncertainty' (Boxplot).")
 
-        # 3. The "Elevator Pitch" (Fixed Syntax)
-        st.info(f"""
-        **The Bottom Line:**
-        We are **{prob_win:.1%}** confident that this change will improve results. 
-        If deployed, we expect a **{avg_uplift:.1%}** improvement in conversion efficiency.
-        """)
+        st.info(f"**Insight:** We are {prob_b_better:.1%} sure that the Variant will outperform the Control.")
