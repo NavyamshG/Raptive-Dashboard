@@ -1,118 +1,158 @@
 import streamlit as st
 import numpy as np
-import matplotlib.pyplot as plt
-import seaborn as sns
-from scipy.stats import beta
+import pandas as pd
+import scipy.stats as stats
+import plotly.graph_objects as go
+import plotly.express as px
 
-st.set_page_config(page_title="Raptive Advanced Decision Engine", layout="wide")
+# --- CONFIGURATION ---
+st.set_page_config(page_title="Raptive ROI Decision Engine", layout="wide")
 
-st.title(" Bayesian A/B Decision Engine")
+# Custom CSS for metric styling
+st.markdown("""
+    <style>
+    [data-testid="stMetricValue"] { font-size: 28px; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# --- SIDEBAR CONTROLS ---
-st.sidebar.header("🕹️ Experiment Data")
-with st.sidebar.expander("Control Settings", expanded=True):
-    clicks_a = st.number_input("Control Conversions", value=100)
-    views_a = st.number_input("Control Impressions", value=1000)
-with st.sidebar.expander("Variant Settings", expanded=True):
-    clicks_b = st.number_input("Variant Conversions", value=125)
-    views_b = st.number_input("Variant Impressions", value=1050)
+st.title("🧪 Strategic Bayesian A/B Engine")
+st.caption("Bridging Statistical Rigor with Executive ROI.")
 
-# --- STATISTICAL CALCULATIONS ---
-# Generate distributions for plotting
-x = np.linspace(0, 0.25, 500)
-y_a = beta.pdf(x, clicks_a + 1, views_a - clicks_a + 1)
-y_b = beta.pdf(x, clicks_b + 1, views_b - clicks_b + 1)
+# --- SIDEBAR: BUSINESS & DATA INPUTS ---
+with st.sidebar:
+    st.header("🕹️ Experiment Controls")
+    
+    with st.expander("📊 Primary Experiment Data", expanded=True):
+        col_a, col_b = st.columns(2)
+        clicks_a = col_a.number_input("Control Clicks", value=1000)
+        views_a = col_a.number_input("Control Views", value=10000)
+        clicks_b = col_b.number_input("Variant Clicks", value=1150)
+        views_b = col_b.number_input("Variant Views", value=10500)
 
-# Monte Carlo Simulation for Probability & Relative Lift
-sim_a = np.random.beta(clicks_a + 1, views_a - clicks_a + 1, 10000)
-sim_b = np.random.beta(clicks_b + 1, views_b - clicks_b + 1, 10000)
+    with st.expander("💰 Business Economics", expanded=True):
+        avg_order_value = st.number_input("Average Order Value ($)", value=50.0)
+        monthly_traffic = st.number_input("Monthly Traffic", value=100000)
+
+    with st.expander("⚙️ Advanced Bayesian Settings", expanded=False):
+        st.write("Informative Priors (Avoid starting from zero)")
+        baseline_ctr = st.slider("Historical CTR (%)", 0.0, 20.0, 10.0) / 100
+        prior_weight = st.number_input("Prior Strength (Effective Samples)", value=100)
+        
+        st.divider()
+        risk_tolerance = st.slider("Risk Tolerance (Max Loss $)", 0, 1000, 100)
+
+# --- CALCULATIONS ---
+# Prior Parameters
+alpha_prior = prior_weight * baseline_ctr
+beta_prior = prior_weight * (1 - baseline_ctr)
+
+# Posterior Samples (Monte Carlo)
+N_SAMPLES = 20000
+sim_a = np.random.beta(alpha_prior + clicks_a, beta_prior + (views_a - clicks_a), N_SAMPLES)
+sim_b = np.random.beta(alpha_prior + clicks_b, beta_prior + (views_b - clicks_b), N_SAMPLES)
+
+# Metrics
 prob_b_better = (sim_b > sim_a).mean()
 relative_lift = (sim_b - sim_a) / sim_a
+expected_uplift = np.median(relative_lift)
 
-# --- MAIN DASHBOARD ---
-m1, m2, m3 = st.columns(3)
-m1.metric("Probability that Variant is Better", f"{prob_b_better:.1%}")
-m2.metric("Mean Relative Lift", f"{(sim_b.mean()/sim_a.mean())-1:+.2%}")
-m3.metric("Decision Status", "Deploy" if prob_b_better > 0.95 else "Collect Data")
+# Financial Impact
+current_revenue = (clicks_a / views_a) * monthly_traffic * avg_order_value
+expected_revenue_delta = expected_uplift * current_revenue
+# Expected Loss: If B < A, how much do we lose?
+loss = np.maximum(0, (sim_a - sim_b) * monthly_traffic * avg_order_value)
+expected_loss = np.mean(loss)
+
+# --- TOP LEVEL KPI DASHBOARD ---
+m1, m2, m3, m4 = st.columns(4)
+
+m1.metric("Win Probability", f"{prob_b_better:.1%}", 
+          help="Probability the variant is better than control.")
+m2.metric("Expected Lift", f"{expected_uplift:+.1%}", 
+          help="The most likely percentage change in conversion.")
+m3.metric("Est. Monthly Revenue", f"${expected_revenue_delta:+,.0f}", 
+          help="Projected dollar impact based on monthly traffic.")
+
+# Decision Logic
+is_significant = prob_b_better > 0.95
+is_low_risk = expected_loss < risk_tolerance
+
+if is_significant and is_low_risk:
+    status = "✅ DEPLOY"
+    color = "green"
+elif is_significant:
+    status = "⚠️ CAUTION"
+    color = "orange"
+else:
+    status = "🛑 GATHER DATA"
+    color = "red"
+
+m4.markdown(f"**Decision Status**<br><h2 style='color:{color}; margin-top:0;'>{status}</h2>", unsafe_allow_html=True)
 
 st.divider()
 
-# --- CHART SECTION ---
-tab1, tab2 = st.tabs(["📊 Confidence Distributions", "📈 Risk & Lift Analysis"])
+# --- VISUALIZATION TABS ---
+tab1, tab2, tab3 = st.tabs(["📊 Performance Density", "📉 Risk Analysis", "🧪 Statistical Rigor"])
 
 with tab1:
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        st.subheader("Performance Density")
-        fig, ax = plt.subplots(figsize=(10, 5))
-        
-        # Plotting the distributions
-        ax.plot(x, y_a, label="Control (Current)", color='#95a5a6', lw=3)
-        ax.fill_between(x, 0, y_a, alpha=0.1, color='#95a5a6')
-        
-        ax.plot(x, y_b, label="Variant (New)", color='#2ecc71', lw=3)
-        ax.fill_between(x, 0, y_b, alpha=0.3, color='#2ecc71')
-        
-        # Visualizing the "Win" - Shading where Variant > Control Mean
-        mean_a = clicks_a / views_a
-        ax.axvline(mean_a, color='#e74c3c', linestyle='--', alpha=0.6, label="Control Baseline")
-        
-        ax.set_xlabel("Conversion Rate (CTR)")
-        ax.set_title("How much overlap is there?", fontsize=12, pad=10)
-        ax.legend()
-        st.pyplot(fig)
+    st.subheader("Interactive Conversion Density")
+    st.write("Where is the 'Winning Zone'?")
     
-    with col2:
-        st.subheader("Range of Uncertainty")
-        # Boxplot to show the spread of the CTR
-        fig_box, ax_box = plt.subplots(figsize=(5, 7.3))
-        sns.boxplot(data=[sim_a, sim_b], palette=['#95a5a6', '#2ecc71'], ax=ax_box)
-        ax_box.set_xticklabels(['Control', 'Variant'])
-        ax_box.set_title("CTR Confidence Intervals")
-        st.pyplot(fig_box)
-
-
+    # Plotly Density Map
+    fig_dens = go.Figure()
+    fig_dens.add_trace(go.Violin(x=sim_a, name='Control', line_color='#95a5a6', side='negative', meanline_visible=True))
+    fig_dens.add_trace(go.Violin(x=sim_b, name='Variant', line_color='#2ecc71', side='positive', meanline_visible=True))
+    fig_dens.update_layout(xaxis_title="Conversion Rate (CTR)", violinmode='overlay', height=400)
+    st.plotly_chart(fig_dens, use_container_width=True)
 
 with tab2:
-    c1, c2 = st.columns([1.5, 1])
+    col_l, col_r = st.columns([1, 1])
     
-    with c1:
-        st.subheader("Decision Confidence")
-        # Probability Gauge for immediate visual "Go/No-Go"
-        import plotly.graph_objects as go
-        
+    with col_l:
+        st.subheader("Financial Risk (Expected Loss)")
+        # Gauge Chart for Risk
         fig_gauge = go.Figure(go.Indicator(
             mode = "gauge+number",
-            value = prob_b_better * 100,
-            number = {'suffix': "%"},
+            value = expected_loss,
+            domain = {'x': [0, 1], 'y': [0, 1]},
+            title = {'text': f"Expected Loss vs ${risk_tolerance} Cap"},
             gauge = {
-                'axis': {'range': [0, 100]},
+                'axis': {'range': [0, risk_tolerance * 2]},
                 'bar': {'color': "black"},
+                'threshold': {'line': {'color': "red", 'width': 4}, 'thickness': 0.75, 'value': risk_tolerance},
                 'steps': [
-                    {'range': [0, 70], 'color': "#ff4b4b"},   # Red: High Risk
-                    {'range': [70, 95], 'color': "#ffa500"},  # Orange: Warning
-                    {'range': [95, 100], 'color': "#00cc96"}  # Green: Safe
-                ],
-                'threshold': {'line': {'color': "white", 'width': 4}, 'value': 95}
+                    {'range': [0, risk_tolerance], 'color': "lightgreen"},
+                    {'range': [risk_tolerance, risk_tolerance * 2], 'color': "pink"}]
             }
         ))
-        fig_gauge.update_layout(height=300, margin=dict(l=20, r=20, t=50, b=20))
         st.plotly_chart(fig_gauge, use_container_width=True)
 
-    with c2:
-        st.subheader(" Business Impact Summary")
-        
-        # Big Bold Metrics
-        st.metric("Most Likely Lift", f"{np.median(relative_lift):+.1%}")
-        
-        # Logic-driven status boxes
-        worst_case = np.percentile(relative_lift, 5)
-        
-        if prob_b_better >= 0.95:
-            st.success(f"✅ **Safe to Deploy**: Confidence is high ({prob_b_better:.1%}). Even the worst-case scenario is likely manageable.")
-        elif prob_b_better >= 0.80:
-            st.warning(f"⚠️ **Directional Win**: High probability of success, but hasn't hit 95% certainty. Worst-case: {worst_case:.1%} drop.")
-        else:
-            st.error(f"🛑 **Inconclusive**: Keep the test running. There is too much overlap in the 'Range of Uncertainty' (Boxplot).")
+    with col_r:
+        st.subheader("Likely Revenue Outcomes")
+        revenue_sim = relative_lift * current_revenue
+        fig_rev = px.histogram(revenue_sim, nbins=50, color_discrete_sequence=['#2ecc71'], 
+                               labels={'value': 'Monthly Revenue Impact ($)'})
+        fig_rev.add_vline(x=0, line_dash="dash", line_color="red")
+        fig_rev.update_layout(showlegend=False, height=350)
+        st.plotly_chart(fig_rev, use_container_width=True)
 
-        st.info(f"**Insight:** We are {prob_b_better:.1%} sure that the Variant will outperform the Control.")
+with tab3:
+    st.subheader("Data Scientist's Workbench")
+    # Technical boxplot for variance check
+    fig_box = go.Figure()
+    fig_box.add_trace(go.Box(y=sim_a, name="Control", marker_color='#95a5a6'))
+    fig_box.add_trace(go.Box(y=sim_b, name="Variant", marker_color='#2ecc71'))
+    fig_box.update_layout(title="CTR Confidence Intervals (Full Distribution)", height=450)
+    st.plotly_chart(fig_box, use_container_width=True)
+    
+    st.info(f"""
+    **Statistical Summary:**
+    - **Control Median:** {np.median(sim_a):.4%}
+    - **Variant Median:** {np.median(sim_b):.4%}
+    - **95% HDI (Variant):** {np.percentile(sim_b, 2.5):.4%} to {np.percentile(sim_b, 97.5):.4%}
+    """)
+
+st.success("**Leader Summary:** " + (
+    f"This variant is expected to generate **${expected_revenue_delta:,.2f}** in additional monthly revenue. "
+    f"The statistical risk (Expected Loss) is **${expected_loss:,.2f}**, which is {'within' if is_low_risk else 'outside'} your risk tolerance."
+))
