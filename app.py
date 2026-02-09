@@ -54,11 +54,11 @@ st.markdown('<p class="sub-header">Evaluating Estimator Robustness: How Distribu
 # Dashboard Summary & Explanation
 st.markdown("""
 <div class="description-box">
-    <strong>Project Objective:</strong> 
+    <strong>Objective:</strong> 
     Evaluating p-value and confidence interval variance across Bernoulli and Binomial modeling frameworks to compare the sensitivity of Z-test, Welch’s T-test, and Fisher’s Exact methods.
     <hr style="margin: 15px 0; border: 0; border-top: 1px solid #ddd;">
     <div class="explanation-text">
-        <strong>Simple Explanation:</strong><br>
+        <strong>Description:</strong><br>
         This lab demonstrates how different mathematical "lenses" interpret the same data, comparing the standard bell-curve approximations of Z and T-tests against the exact probability calculations of Fisher’s method. It reveals whether a statistical "win" is a robust result or simply a byproduct of the specific distribution and test selected.
     </div>
 </div>
