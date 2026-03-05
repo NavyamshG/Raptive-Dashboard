@@ -156,6 +156,12 @@ def pct(x):
     return f"{x:.2%}" if np.isfinite(x) else "NA"
 
 
+def beta_credible_interval(samples, level=0.95):
+    lo = (1 - level) / 2
+    hi = 1 - lo
+    return np.percentile(samples, [100 * lo, 100 * hi])
+
+
 # -------------------------
 # Sidebar
 # -------------------------
@@ -186,6 +192,44 @@ with st.sidebar:
         sims = st.slider("Simulations", 100, 2000, 500)
         seed = st.number_input("Seed", value=42)
 
+    # -------------------------------------------------
+    # Bayesian Settings (NEW)
+    # -------------------------------------------------
+    st.divider()
+    st.header("🧠 Bayesian Settings")
+
+    with st.expander("Prior Setup"):
+        prior_mode = st.selectbox(
+            "Choose prior type:",
+            ["Uniform (Beta(1,1))", "Jeffreys (Beta(0.5,0.5))", "Custom Beta(a,b)"],
+        )
+        if prior_mode == "Custom Beta(a,b)":
+            prior_a = st.number_input("Prior α (a)", min_value=0.01, value=1.0, step=0.5)
+            prior_b = st.number_input("Prior β (b)", min_value=0.01, value=1.0, step=0.5)
+        elif prior_mode == "Jeffreys (Beta(0.5,0.5))":
+            prior_a, prior_b = 0.5, 0.5
+        else:
+            prior_a, prior_b = 1.0, 1.0
+
+        st.caption("Tip: Stronger priors = larger (a+b). Uniform/Jeffreys are weak, neutral priors.")
+
+    with st.expander("Posterior Sampling & Interval"):
+        bayes_samples = st.slider("Posterior samples", 5000, 100000, 20000, step=5000)
+        credible_level = st.slider("Credible interval level", 0.80, 0.99, 0.95, step=0.01)
+        show_prior_overlay = st.toggle("Show prior vs posterior overlay", value=True)
+
+    with st.expander("Likelihood Strength Demo"):
+        st.caption(
+            "This shows how the posterior changes when you down/up-weight the data (likelihood) while keeping the same observed CTR."
+        )
+        like_weight = st.slider(
+            "Likelihood weight (0.1 = weak data, 1.0 = actual data, 3.0 = strong data)",
+            0.1,
+            3.0,
+            1.0,
+            step=0.1,
+        )
+
 # -------------------------
 # Calculations
 # -------------------------
@@ -212,7 +256,7 @@ newc_d, newc_lo, newc_hi = newcombe_ci_diff(x1, n1, x2, n2, alpha=alpha)
 tab1, tab2 = st.tabs(["Frequentist Inference", "Bayesian Inference"])
 
 # =========================================================
-# TAB 1: Frequentist (your existing dashboard)
+# TAB 1: Frequentist (DO NOT CHANGE)
 # =========================================================
 with tab1:
     c1, c2, c3, c4 = st.columns(4)
@@ -370,63 +414,185 @@ with tab1:
             st.info(f"Checking results {looks} times instead of once increases your error rate by {fp_rate/alpha:.1f}x.")
 
 # =========================================================
-# TAB 2: Bayesian CTR
+# TAB 2: Bayesian CTR (UPDATED)
 # =========================================================
 with tab2:
     st.subheader("Bayesian CTR Inference (Beta-Binomial)")
 
-    # Posterior with uniform prior Beta(1,1)
-    a1, b1 = int(x1) + 1, int(n1 - x1) + 1
-    a2, b2 = int(x2) + 1, int(n2 - x2) + 1
+    # --- Prior
+    a0, b0 = float(prior_a), float(prior_b)
 
-    # Sample posteriors
-    samples = 20000
+    # --- Likelihood "weight" demo (keeps CTR same but changes evidence strength)
+    # We down/up-weight counts proportionally, using rounding to keep integers.
+    x1w = int(round(float(x1) * like_weight))
+    n1w = int(round(float(n1) * like_weight))
+    x2w = int(round(float(x2) * like_weight))
+    n2w = int(round(float(n2) * like_weight))
+
+    # Ensure valid after weighting
+    x1w = min(max(0, x1w), n1w)
+    x2w = min(max(0, x2w), n2w)
+    n1w = max(1, n1w)
+    n2w = max(1, n2w)
+
+    # --- Posterior params
+    a1_post, b1_post = a0 + x1w, b0 + (n1w - x1w)
+    a2_post, b2_post = a0 + x2w, b0 + (n2w - x2w)
+
+    # --- Sample posteriors
     rng_b = np.random.default_rng(int(seed) + 7)
-    control_samples = rng_b.beta(a1, b1, size=samples)
-    variant_samples = rng_b.beta(a2, b2, size=samples)
-
-    prob_variant_wins = float(np.mean(variant_samples > control_samples))
+    control_samples = rng_b.beta(a1_post, b1_post, size=int(bayes_samples))
+    variant_samples = rng_b.beta(a2_post, b2_post, size=int(bayes_samples))
     lift_samples = variant_samples - control_samples
 
-    # Credible intervals
-    ctrl_ci_lo, ctrl_ci_hi = np.percentile(control_samples, [2.5, 97.5])
-    var_ci_lo, var_ci_hi = np.percentile(variant_samples, [2.5, 97.5])
-    lift_ci_lo, lift_ci_hi = np.percentile(lift_samples, [2.5, 97.5])
+    # --- Credible intervals
+    ctrl_lo, ctrl_hi = beta_credible_interval(control_samples, level=float(credible_level))
+    var_lo, var_hi = beta_credible_interval(variant_samples, level=float(credible_level))
+    lift_lo, lift_hi = beta_credible_interval(lift_samples, level=float(credible_level))
 
+    prob_variant_wins = float(np.mean(variant_samples > control_samples))
+
+    # --- Top metrics
     k1, k2, k3, k4 = st.columns(4)
     k1.metric("P(Variant > Control)", f"{prob_variant_wins:.2%}")
-    k2.metric("Control 95% CrI", f"{ctrl_ci_lo:.2%} — {ctrl_ci_hi:.2%}")
-    k3.metric("Variant 95% CrI", f"{var_ci_lo:.2%} — {var_ci_hi:.2%}")
-    k4.metric("Lift 95% CrI", f"{lift_ci_lo:.2%} — {lift_ci_hi:.2%}")
+    k2.metric(f"Control {int(credible_level*100)}% CrI", f"{ctrl_lo:.2%} — {ctrl_hi:.2%}")
+    k3.metric(f"Variant {int(credible_level*100)}% CrI", f"{var_lo:.2%} — {var_hi:.2%}")
+    k4.metric(f"Lift {int(credible_level*100)}% CrI", f"{lift_lo:.2%} — {lift_hi:.2%}")
 
     st.divider()
 
+    # -------------------------------------------------
+    # 1) Posterior Distributions + Prior/Likelihood effect
+    # -------------------------------------------------
     st.subheader("1) Posterior Distributions")
 
-    # Choose x-range around observed CTRs but safe for tails
-    x_max = max(0.20, float(max(p1, p2) * 3))
-    x = np.linspace(0, min(1.0, x_max), 600)
+    # X-range for PDFs
+    x_max = max(0.25, float(max(p1, p2) * 3))
+    xs = np.linspace(0, min(1.0, x_max), 700)
 
-    ctrl_pdf = stats.beta.pdf(x, a1, b1)
-    var_pdf = stats.beta.pdf(x, a2, b2)
+    ctrl_pdf = stats.beta.pdf(xs, a1_post, b1_post)
+    var_pdf = stats.beta.pdf(xs, a2_post, b2_post)
 
     fig_post = go.Figure()
-    fig_post.add_trace(go.Scatter(x=x, y=ctrl_pdf, fill="tozeroy", name="Control Posterior", line_color="#636EFA"))
-    fig_post.add_trace(go.Scatter(x=x, y=var_pdf, fill="tozeroy", name="Variant Posterior", line_color="#00CC96"))
-    fig_post.update_layout(height=420, margin=dict(l=0, r=0, t=10, b=0), xaxis_title="CTR", yaxis_title="Posterior Density")
+    fig_post.add_trace(
+        go.Scatter(
+            x=xs,
+            y=ctrl_pdf,
+            fill="tozeroy",
+            name="Control Posterior",
+            line_color="#636EFA",
+        )
+    )
+    fig_post.add_trace(
+        go.Scatter(
+            x=xs,
+            y=var_pdf,
+            fill="tozeroy",
+            name="Variant Posterior",
+            line_color="#00CC96",
+        )
+    )
+
+    # Optional: show prior overlay (same prior for both)
+    if show_prior_overlay:
+        prior_pdf = stats.beta.pdf(xs, a0, b0)
+        fig_post.add_trace(
+            go.Scatter(
+                x=xs,
+                y=prior_pdf,
+                name=f"Prior Beta({a0:g},{b0:g})",
+                line=dict(color="gray", dash="dash"),
+            )
+        )
+
+    fig_post.update_layout(
+        height=420,
+        margin=dict(l=0, r=0, t=10, b=0),
+        xaxis_title="CTR",
+        yaxis_title="Posterior Density",
+    )
     st.plotly_chart(fig_post, use_container_width=True)
+
+    st.markdown(
+        f"""
+- **Prior:** Beta({a0:g}, {b0:g})
+- **Likelihood weight:** {like_weight:.1f}× (effective views scaled to Control={n1w}, Variant={n2w})
+- **Posterior (Control):** Beta({a1_post:.1f}, {b1_post:.1f})
+- **Posterior (Variant):** Beta({a2_post:.1f}, {b2_post:.1f})
+""".strip()
+    )
 
     st.divider()
 
-    st.subheader("2) Lift (Variant − Control) Posterior")
+    # -------------------------------------------------
+    # 2) Bayesian "Confidence Interval" view for Lift (like your first tab)
+    # -------------------------------------------------
+    st.subheader("2) Bayesian Credible Intervals")
+
+    st.markdown(
+        f"""<span style="font-size: 1.2rem;">
+        <strong>Lift Credible Interval ({int(credible_level*100)}%):</strong>
+        <code>{lift_lo:.2%}</code> to <code>{lift_hi:.2%}</code>
+        </span>""",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"""<span style="font-size: 1.2rem;">
+        <strong>Control CTR Credible Interval ({int(credible_level*100)}%):</strong>
+        <code>{ctrl_lo:.2%}</code> to <code>{ctrl_hi:.2%}</code>
+        </span>""",
+        unsafe_allow_html=True,
+    )
+
+    st.markdown(
+        f"""<span style="font-size: 1.2rem;">
+        <strong>Variant CTR Credible Interval ({int(credible_level*100)}%):</strong>
+        <code>{var_lo:.2%}</code> to <code>{var_hi:.2%}</code>
+        </span>""",
+        unsafe_allow_html=True,
+    )
+
+    # Plot: Lift interval in the same "error bar" style
+    lift_mean = float(np.mean(lift_samples))
+    fig_bci = go.Figure()
+    fig_bci.add_trace(
+        go.Scatter(
+            x=[lift_mean],
+            y=[f"Lift ({int(credible_level*100)}% CrI)"],
+            mode="markers",
+            error_x=dict(
+                type="data",
+                array=[lift_hi - lift_mean],
+                arrayminus=[lift_mean - lift_lo],
+                visible=True,
+            ),
+            marker=dict(size=12, color="#FF4B4B"),
+        )
+    )
+    fig_bci.add_vline(x=0, line_dash="dash", line_color="gray")
+    fig_bci.update_layout(height=260, xaxis_title="Abs Lift", showlegend=False, margin=dict(l=0, r=0, t=10, b=0))
+    st.plotly_chart(fig_bci, use_container_width=True)
+
+    st.divider()
+
+    # -------------------------------------------------
+    # 3) Lift Posterior (Histogram)
+    # -------------------------------------------------
+    st.subheader("3) Lift (Variant − Control) Posterior")
 
     fig_lift = go.Figure()
     fig_lift.add_trace(go.Histogram(x=lift_samples, nbinsx=70))
     fig_lift.add_vline(x=0, line_dash="dash", line_color="gray")
-    fig_lift.update_layout(height=380, margin=dict(l=0, r=0, t=10, b=0), xaxis_title="Absolute Lift", yaxis_title="Frequency")
+    fig_lift.update_layout(
+        height=380,
+        margin=dict(l=0, r=0, t=10, b=0),
+        xaxis_title="Absolute Lift",
+        yaxis_title="Frequency",
+    )
     st.plotly_chart(fig_lift, use_container_width=True)
 
     st.info(
         "Interpretation: Bayesian results give you a direct probability of winning and credible intervals over CTR and lift, "
-        "instead of a p-value threshold."
+        "instead of a p-value threshold. Adjust the prior and likelihood weight in the sidebar to see how beliefs and evidence shape the posterior."
     )
